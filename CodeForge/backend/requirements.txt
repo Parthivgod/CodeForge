@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+pgvector
+networkx
+python-multipart
+# torch # CPU version usually installed separately, but we can list it
+# torch-geometric
+python-dotenv
+aiofiles
+openai
+GitPython
+scikit-learn
+numpy
+langsmith
