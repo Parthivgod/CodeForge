@@ -54,9 +54,7 @@ services:
     ports:
       - "80:80"
     environment:
-      - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
-    depends_on:
-      - backend
+      - VITE_API_URL=https://codeforge-6nhc.onrender.com
     restart: always
 
 volumes:

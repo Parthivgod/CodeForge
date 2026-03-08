@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # CodeForge Deployment Script
-# Usage: ./deploy.sh [dev|prod]
+# Usage: ./deploy.sh [dev|prod|frontend]
 
 set -e
 
@@ -37,7 +37,24 @@ fi
 echo "✅ Prerequisites check passed"
 echo ""
 
-if [ "$MODE" = "prod" ]; then
+if [ "$MODE" = "frontend" ]; then
+    echo "📦 Building and starting frontend-only (using Render backend)..."
+    docker-compose -f docker-compose.frontend.yml down
+    docker-compose -f docker-compose.frontend.yml up -d --build
+    
+    echo ""
+    echo "⏳ Waiting for frontend to start..."
+    sleep 5
+    
+    echo ""
+    echo "✅ Frontend-only deployment complete!"
+    echo ""
+    echo "🌐 Access your application:"
+    echo "   Frontend: http://localhost:5173"
+    echo "   Backend API: https://codeforge-6nhc.onrender.com"
+    echo "   API Docs: https://codeforge-6nhc.onrender.com/docs"
+    
+elif [ "$MODE" = "prod" ]; then
     echo "📦 Building and starting production services..."
     docker-compose -f docker-compose.prod.yml down
     docker-compose -f docker-compose.prod.yml up -d --build
@@ -78,7 +95,9 @@ docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
 echo ""
 echo "📝 View logs with:"
-if [ "$MODE" = "prod" ]; then
+if [ "$MODE" = "frontend" ]; then
+    echo "   docker-compose -f docker-compose.frontend.yml logs -f"
+elif [ "$MODE" = "prod" ]; then
     echo "   docker-compose -f docker-compose.prod.yml logs -f"
 else
     echo "   docker-compose logs -f"
@@ -86,7 +105,9 @@ fi
 
 echo ""
 echo "🛑 Stop services with:"
-if [ "$MODE" = "prod" ]; then
+if [ "$MODE" = "frontend" ]; then
+    echo "   docker-compose -f docker-compose.frontend.yml down"
+elif [ "$MODE" = "prod" ]; then
     echo "   docker-compose -f docker-compose.prod.yml down"
 else
     echo "   docker-compose down"
