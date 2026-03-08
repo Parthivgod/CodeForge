@@ -316,10 +316,10 @@ def _prepare_node_summary(node: Dict, all_nodes: List[Dict]) -> Dict:
 @traceable(project_name="CodeForge")
 def classify_nodes(client, nodes: List[Dict], all_nodes: List[Dict]) -> Dict[str, Dict]:
     """
-    Role A: Classify a batch of nodes and assign risk tiers.
+    Mapper: Classify a batch of nodes and assign risk tiers.
     Returns {node_id: classification_dict}.
     """
-    cfg = MODEL_ROLES["role_a"]
+    cfg = MODEL_ROLES["mapper"]
     summaries = [_prepare_node_summary(n, all_nodes) for n in nodes]
 
     prompt = f"""Classify the following {len(summaries)} AST nodes.
@@ -329,8 +329,8 @@ Nodes:
 {json.dumps(summaries, indent=2)}"""
 
     raw = _call_model(
-        client, "role_a", cfg["model_id"],
-        SYSTEM_PROMPT_ROLE_A, prompt, cfg["temperature"]
+        client, "Mapper", cfg["model_id"],
+        SYSTEM_PROMPT_MAPPER, prompt, cfg["temperature"]
     )
     parsed = _parse_json_response(raw)
     if not parsed or "classifications" not in parsed:
