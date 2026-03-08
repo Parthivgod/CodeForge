@@ -1,7 +1,5 @@
 """
 Multi-Language AST Parser and Code Property Graph Builder
-
-Supports: Python, JavaScript, TypeScript, Java, Go
 """
 
 import ast
@@ -10,694 +8,463 @@ import zipfile
 import tempfile
 from typing import List, Dict, Any, Optional
 from pathlib import Path
-
-# Language extension mapping
-LANGUAGE_MAP = {
-    '.py': 'python',
-    '.js': 'javascript',
-    '.jsx': 'javascript',
-    '.ts': 'typescript',
-    '.tsx': 'typescript',
-    '.java': 'java',
-    '.go': 'go',
-    '.c': 'c',
-    '.cpp': 'cpp',
-    '.h': 'c',
-    '.hpp': 'cpp',
-    '.cs': 'csharp',
-    '.rb': 'ruby',
-    '.php': 'php',
-}
-
-def detect_language(filepath: str) -> Optional[str]:
-    """Detect programming language from file extension."""
-    ext = Path(filepath).suffix.lower()
-    return LANGUAGE_MAP.get(ext)
-
-def extract_archive(zip_path: str, extract_to: str) -> str:
-    """Extract zip archive to target directory."""
-    if zipfile.is_zipfile(zip_path):
-        with zipfile.ZipFile(zip_path, 'r') as zf:
-            zf.extractall(extract_to)
-        return extract_to
-    # If it's already a directory (from git clone), return as-is
-    if os.path.isdir(zip_path):
-        return zip_path
-    return zip_path
-
-def find_code_files(directory: str) -> List[str]:
-    """Find all supported code files in directory."""
-    code_files = []
-    for root, dirs, files in os.walk(directory):
-        # Skip common non-code directories
-        dirs[:] = [d for d in dirs if d not in ['node_modules', '.git', '__pycache__', 'venv', '.venv', 'dist', 'build']]
-        for file in files:
-            filepath = os.path.join(root, file)
-            if detect_language(filepath):
-                code_files.append(filepath)
-    return code_files
-
-
-# ============ PYTHON PARSER ============
-
-class PythonASTVisitor(ast.NodeVisitor):
-    """Extract functions, classes, imports and calls from Python AST."""
-    
-    def __init__(self, filepath: str):
-        self.filepath = filepath
-        self.module_name = Path(filepath).stem
-        self.nodes = []
-        self.current_class = None
-        self.current_function = None
-        self.imports = []
-        self.calls = []
-        # Common API libraries
-        self.api_libs = {'requests', 'httpx', 'urllib', 'flask', 'fastapi', 'django', 'aiohttp'}
-    
-    def visit_Import(self, node):
-        for alias in node.names:
-            self.imports.append(alias.name)
-        self.generic_visit(node)
-    
-    def visit_ImportFrom(self, node):
-        if node.module:
-            self.imports.append(node.module)
-        self.generic_visit(node)
-    
-    def visit_ClassDef(self, node):
-        class_id = f"{self.module_name}.{node.name}"
-        bases = [self._get_name(base) for base in node.bases]
-        
-        self.nodes.append({
-            "id": class_id,
-            "type": "class",
-            "name": node.name,
-            "file": self.filepath,
-            "language": "python",
-            "line_start": node.lineno,
-            "line_end": node.end_lineno or node.lineno,
-            "loc": (node.end_lineno or node.lineno) - node.lineno + 1,
-            "inherits": bases,
-            "imports": [],
-            "calls": []
-        })
-        
-        old_class = self.current_class
-        self.current_class = class_id
-        self.generic_visit(node)
-        self.current_class = old_class
-    
-    def visit_FunctionDef(self, node):
-        self._process_function(node)
-    
-    def visit_AsyncFunctionDef(self, node):
-        self._process_function(node)
-    
-    def _process_function(self, node):
-        if self.current_class:
-            func_id = f"{self.current_class}.{node.name}"
-            parent_class = self.current_class
-        elif self.current_function:
-            func_id = f"{self.current_function}.{node.name}"
-            parent_class = None
-        else:
-            func_id = f"{self.module_name}.{node.name}"
-            parent_class = None
-        
-        # Collect calls and search for API calls
-        local_calls = []
-        api_calls = []
-        variables = []
-        parameters = []
-        
-        # Extract function parameters
-        for arg in node.args.args:
-            parameters.append(arg.arg)
-        
-        # Extract variables and calls
-        for child in ast.walk(node):
-            if isinstance(child, ast.Call):
-                call_name = self._get_call_name(child)
-                if call_name:
-                    local_calls.append(call_name)
-                    # Heuristic for API calls: common library names or common patterns
-                    if any(lib in call_name.lower() for lib in self.api_libs) or \
-                       call_name.lower() in ['get', 'post', 'put', 'delete', 'patch']:
-                        api_id = f"api_{func_id}_{call_name}_{child.lineno}"
-                        api_calls.append({
-                            "id": api_id,
-                            "type": "api_call",
-                            "name": call_name,
-                            "file": self.filepath,
-                            "language": "python",
-                            "line_start": child.lineno,
-                            "parent": func_id
-                        })
-            
-            # Extract variable names (assignments)
-            elif isinstance(child, ast.Assign):
-                for target in child.targets:
-                    if isinstance(target, ast.Name):
-                        variables.append(target.id)
-            
-            # Extract variable names (name references)
-            elif isinstance(child, ast.Name) and isinstance(child.ctx, ast.Load):
-                if child.id not in parameters and child.id not in ['self', 'cls']:
-                    variables.append(child.id)
-        
-        # Remove duplicates
-        variables = list(set(variables))
-        local_calls = list(set(local_calls))
-        
-        self.nodes.append({
-            "id": func_id,
-            "type": "function",
-            "name": node.name,
-            "file": self.filepath,
-            "language": "python",
-            "line_start": node.lineno,
-            "line_end": node.end_lineno or node.lineno,
-            "loc": (node.end_lineno or node.lineno) - node.lineno + 1,
-            "imports": [],
-            "calls": local_calls,
-            "api_calls": [a['id'] for a in api_calls],
-            "variables": variables,
-            "parameters": parameters,
-            "parent_class": parent_class
-        })
-        
-        self.nodes.extend(api_calls)
-        
-        old_func = self.current_function
-        self.current_function = func_id
-        self.generic_visit(node)
-        self.current_function = old_func
-    
-    def _get_name(self, node) -> str:
-        if isinstance(node, ast.Name):
-            return node.id
-        elif isinstance(node, ast.Attribute):
-            return f"{self._get_name(node.value)}.{node.attr}"
-        return ""
-    
-    def _get_call_name(self, node) -> str:
-        if isinstance(node.func, ast.Name):
-            return node.func.id
-        elif isinstance(node.func, ast.Attribute):
-            base = self._get_name(node.func.value)
-            return f"{base}.{node.func.attr}" if base else node.func.attr
-        return ""
-
-
-def parse_python(filepath: str) -> Dict[str, Any]:
-    """Parse Python file and extract nodes."""
-    try:
-        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
-            source = f.read()
-        
-        tree = ast.parse(source, filename=filepath)
-        visitor = PythonASTVisitor(filepath)
-        visitor.visit(tree)
-        
-        return {
-            "file": filepath,
-            "language": "python",
-            "nodes": visitor.nodes,
-            "imports": visitor.imports
-        }
-    except SyntaxError as e:
-        print(f"Syntax error in {filepath}: {e}")
-        return {"file": filepath, "language": "python", "nodes": [], "imports": []}
-    except Exception as e:
-        print(f"Error parsing {filepath}: {e}")
-        return {"file": filepath, "language": "python", "nodes": [], "imports": []}
-
-
-# ============ JAVASCRIPT/TYPESCRIPT PARSER ============
-
-def parse_javascript(filepath: str) -> Dict[str, Any]:
-    """
-    Parse JavaScript/TypeScript file using regex-based extraction.
-    For production, use tree-sitter or esprima.
-    """
-    import re
-    
-    try:
-        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
-            source = f.read()
-        
-        nodes = []
-        imports = []
-        module_name = Path(filepath).stem
-        language = "typescript" if filepath.endswith(('.ts', '.tsx')) else "javascript"
-        
-        # Extract imports
-        import_patterns = [
-            r'import\s+.*?\s+from\s+[\'"]([^\'"]+)[\'"]',
-            r'import\s+[\'"]([^\'"]+)[\'"]',
-            r'require\s*\(\s*[\'"]([^\'"]+)[\'"]\s*\)'
-        ]
-        for pattern in import_patterns:
-            imports.extend(re.findall(pattern, source))
-        
-        # Extract functions (including arrow functions)
-        func_patterns = [
-            (r'(?:export\s+)?(?:async\s+)?function\s+(\w+)\s*\(', "function"),
-            (r'(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?\([^)]*\)\s*=>', "function"),
-            (r'(?:export\s+)?class\s+(\w+)', "class")
-        ]
-        
-        for pattern, node_type in func_patterns:
-            for match in re.finditer(pattern, source):
-                name = match.group(1)
-                line_num = source[:match.start()].count('\n') + 1
-                nodes.append({
-                    "id": f"{module_name}.{name}",
-                    "type": node_type,
-                    "name": name,
-                    "file": filepath,
-                    "language": language,
-                    "line_start": line_num,
-                    "line_end": line_num,
-                    "loc": 10 if node_type == "function" else 20,
-                    "imports": [],
-                    "calls": []
-                })
-        
-        # Extract API calls (axios, fetch)
-        api_patterns = [
-            (r'axios\.(get|post|put|delete|patch)\s*\(', "axios"),
-            (r'fetch\s*\(', "fetch")
-        ]
-        for pattern, api_lib in api_patterns:
-            for match in re.finditer(pattern, source):
-                line_num = source[:match.start()].count('\n') + 1
-                name = match.group(1) if api_lib == "axios" else "fetch"
-                api_id = f"api_{module_name}_{api_lib}_{line_num}"
-                nodes.append({
-                    "id": api_id,
-                    "type": "api_call",
-                    "name": f"{api_lib}.{name}" if api_lib == "axios" else name,
-                    "file": filepath,
-                    "language": language,
-                    "line_start": line_num,
-                    "parent": None # Hard to determine parent with regex
-                })
-        
-        return {
-            "file": filepath,
-            "language": language,
-            "nodes": nodes,
-            "imports": imports
-        }
-    except Exception as e:
-        print(f"Error parsing {filepath}: {e}")
-        return {"file": filepath, "language": language, "nodes": [], "imports": []}
-
-
-# ============ JAVA PARSER ============
-
-def parse_java(filepath: str) -> Dict[str, Any]:
-    """Parse Java file using regex-based extraction."""
-    import re
-    
-    try:
-        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
-            source = f.read()
-        
-        nodes = []
-        imports = []
-        module_name = Path(filepath).stem
-        
-        # Extract imports
-        import_pattern = r'import\s+([\w.]+);'
-        imports = re.findall(import_pattern, source)
-        
-        # Extract classes
-        class_pattern = r'(?:public\s+)?(?:abstract\s+)?class\s+(\w+)'
-        for match in re.finditer(class_pattern, source):
-            name = match.group(1)
-            line_num = source[:match.start()].count('\n') + 1
-            nodes.append({
-                "id": f"{module_name}.{name}",
-                "type": "class",
-                "name": name,
-                "file": filepath,
-                "language": "java",
-                "line_start": line_num,
-                "line_end": line_num,
-                "loc": 50,
-                "imports": [],
-                "calls": []
-            })
-        
-        # Extract methods
-        method_pattern = r'(?:public|private|protected)?\s*(?:static\s+)?(?:\w+)\s+(\w+)\s*\([^)]*\)\s*{'
-        for match in re.finditer(method_pattern, source):
-            name = match.group(1)
-            if name not in ['if', 'while', 'for', 'switch']:  # Skip keywords
-                line_num = source[:match.start()].count('\n') + 1
-                nodes.append({
-                    "id": f"{module_name}.{name}",
-                    "type": "function",
-                    "name": name,
-                    "file": filepath,
-                    "language": "java",
-                    "line_start": line_num,
-                    "line_end": line_num,
-                    "loc": 15,
-                    "imports": [],
-                    "calls": []
-                })
-        
-        return {
-            "file": filepath,
-            "language": "java",
-            "nodes": nodes,
-            "imports": imports
-        }
-    except Exception as e:
-        print(f"Error parsing {filepath}: {e}")
-        return {"file": filepath, "language": "java", "nodes": [], "imports": []}
-
-
-# ============ GO PARSER ============
-
-def parse_go(filepath: str) -> Dict[str, Any]:
-    """Parse Go file using regex-based extraction."""
-    import re
-    
-    try:
-        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
-            source = f.read()
-        
-        nodes = []
-        imports = []
-        module_name = Path(filepath).stem
-        
-        # Extract imports
-        import_pattern = r'import\s+(?:\(\s*([^)]+)\)|"([^"]+)")'
-        for match in re.finditer(import_pattern, source):
-            if match.group(1):
-                imports.extend(re.findall(r'"([^"]+)"', match.group(1)))
-            elif match.group(2):
-                imports.append(match.group(2))
-        
-        # Extract functions
-        func_pattern = r'func\s+(?:\([^)]+\)\s+)?(\w+)\s*\('
-        for match in re.finditer(func_pattern, source):
-            name = match.group(1)
-            line_num = source[:match.start()].count('\n') + 1
-            nodes.append({
-                "id": f"{module_name}.{name}",
-                "type": "function",
-                "name": name,
-                "file": filepath,
-                "language": "go",
-                "line_start": line_num,
-                "line_end": line_num,
-                "loc": 15,
-                "imports": [],
-                "calls": []
-            })
-        
-        # Extract structs (like classes)
-        struct_pattern = r'type\s+(\w+)\s+struct'
-        for match in re.finditer(struct_pattern, source):
-            name = match.group(1)
-            line_num = source[:match.start()].count('\n') + 1
-            nodes.append({
-                "id": f"{module_name}.{name}",
-                "type": "class",
-                "name": name,
-                "file": filepath,
-                "language": "go",
-                "line_start": line_num,
-                "line_end": line_num,
-                "loc": 20,
-                "imports": [],
-                "calls": []
-            })
-        
-        return {
-            "file": filepath,
-            "language": "go",
-            "nodes": nodes,
-            "imports": imports
-        }
-    except Exception as e:
-        print(f"Error parsing {filepath}: {e}")
-        return {"file": filepath, "language": "go", "nodes": [], "imports": []}
-
-
-# ============ GENERIC FALLBACK ============
-
-def parse_generic(filepath: str) -> Dict[str, Any]:
-    """Fallback parser - just count lines."""
-    try:
-        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
-            lines = f.readlines()
-        
-        module_name = Path(filepath).stem
-        language = detect_language(filepath) or "unknown"
-        
-        return {
-            "file": filepath,
-            "language": language,
-            "nodes": [{
-                "id": f"{module_name}",
-                "type": "module",
-                "name": module_name,
-                "file": filepath,
-                "language": language,
-                "line_start": 1,
-                "line_end": len(lines),
-                "loc": len(lines),
-                "imports": [],
-                "calls": []
-            }],
-            "imports": []
-        }
-    except Exception as e:
-        return {"file": filepath, "language": "unknown", "nodes": [], "imports": []}
-
-
-# ============ MAIN PARSER ROUTER ============
-
-def parse_file(filepath: str) -> Dict[str, Any]:
-    """Route to appropriate parser based on language."""
-    language = detect_language(filepath)
-    
-    if language == 'python':
-        return parse_python(filepath)
-    elif language in ['javascript', 'typescript']:
-        return parse_javascript(filepath)
-    elif language == 'java':
-        return parse_java(filepath)
-    elif language == 'go':
-        return parse_go(filepath)
-    else:
-        return parse_generic(filepath)
-
-
-# ============ GRAPH BUILDER ============
-
 import networkx as nx
 from langsmith import traceable
 
-@traceable(project_name="CodeForge")
-def build_cpg(path: str, job_id: str) -> Dict[str, Any]:
-    """
-    Build Code Property Graph from uploaded codebase.
-    """
-    print(f"Building CPG for {path}")
-    
-    # Extract if zip
-    if path.endswith('.zip') and zipfile.is_zipfile(path):
-        extract_dir = tempfile.mkdtemp(prefix=f"cpg_{job_id}_")
-        working_dir = extract_archive(path, extract_dir)
-    else:
-        working_dir = path
-    
-    # Find all code files
-    code_files = find_code_files(working_dir)
-    print(f"Found {len(code_files)} code files")
-    
-    # Parse all files
-    all_nodes = []
-    all_imports = {}
-    
-    for filepath in code_files:
-        result = parse_file(filepath)
-        all_nodes.extend(result['nodes'])
-        all_imports[filepath] = result['imports']
-    
-    # Create NetworkX graph
-    G = nx.DiGraph()
-    
-    for node in all_nodes:
-        # Avoid duplicates and ensure all required fields exist
-        if node['id'] not in G:
-            G.add_node(node['id'], **node)
-    
-    # Build edges based on imports, calls, and parent relations
-    edges = build_edges(all_nodes, all_imports)
-    for edge in edges:
-        G.add_edge(edge['source'], edge['target'], type=edge['type'])
-    
-    print(f"Extracted {G.number_of_nodes()} nodes and {G.number_of_edges()} edges")
-    
-    # Convert to JSON serializable format for the frontend
-    result_nodes = []
-    for node_id, data in G.nodes(data=True):
-        result_nodes.append(data)
-        
-    result_edges = []
-    for u, v, data in G.edges(data=True):
-        result_edges.append({
-            "id": f"e_{u}_{v}",
-            "source": u,
-            "target": v,
-            "type": data.get('type', 'calls')
-        })
-        
-    return {
-        "nodes": result_nodes,
-        "edges": result_edges,
-        "nx_graph": G # Keep the object for further processing if needed
-    }
+# ─── Language Mapping ───
+LANGUAGE_MAP = {
+    '.py': 'python', '.js': 'javascript', '.jsx': 'javascript', '.ts': 'typescript', 
+    '.tsx': 'typescript', '.java': 'java', '.go': 'go', '.c': 'c', '.cpp': 'cpp', 
+    '.h': 'c', '.hpp': 'cpp', '.cs': 'csharp', '.rb': 'ruby', '.php': 'php',
+}
 
+def detect_language(filepath: str) -> Optional[str]:
+    return LANGUAGE_MAP.get(Path(filepath).suffix.lower())
 
-def build_edges(nodes: List[Dict], imports: Dict[str, List[str]]) -> List[Dict]:
-    """Build comprehensive edges from various relationships."""
-    edges = []
-    node_ids = {n['id'] for n in nodes}
-    
-    # Create multiple lookup maps for better name resolution
-    node_names = {n['name']: n['id'] for n in nodes}
-    file_nodes = {}  # file -> [node_ids]
-    class_methods = {}  # class_name -> [method_ids]
-    
-    # Build lookup maps
-    for node in nodes:
-        file_path = node.get('file', '')
-        if file_path not in file_nodes:
-            file_nodes[file_path] = []
-        file_nodes[file_path].append(node['id'])
-        
-        if node['type'] == 'function' and node.get('parent_class'):
-            class_name = node['parent_class']
-            if class_name not in class_methods:
-                class_methods[class_name] = []
-            class_methods[class_name].append(node['id'])
-    
-    for node in nodes:
-        # 1. Enhanced function call edges
-        for call in node.get('calls', []):
-            targets = []
+def extract_archive(zip_path: str, extract_to: str) -> str:
+    if zipfile.is_zipfile(zip_path):
+        with zipfile.ZipFile(zip_path, 'r') as zf: zf.extractall(extract_to)
+        return extract_to
+    return zip_path if os.path.isdir(zip_path) else zip_path
+
+def find_code_files(directory: str) -> List[str]:
+    code_files = []
+    for root, dirs, files in os.walk(directory):
+        dirs[:] = [d for d in dirs if d not in ['node_modules', '.git', '__pycache__', 'venv', '.venv', 'dist', 'build']]
+        for file in files:
+            filepath = os.path.join(root, file)
+            if detect_language(filepath): code_files.append(filepath)
+    return code_files
+
+# ─── Tree-sitter Setup ───
+import tree_sitter
+import tree_sitter_python
+import tree_sitter_javascript
+import tree_sitter_typescript
+import tree_sitter_java
+import tree_sitter_go
+
+TS_LANGUAGES = {
+    'python': tree_sitter.Language(tree_sitter_python.language()),
+    'javascript': tree_sitter.Language(tree_sitter_javascript.language()),
+    'typescript': tree_sitter.Language(tree_sitter_typescript.language_typescript()),
+    'java': tree_sitter.Language(tree_sitter_java.language()),
+    'go': tree_sitter.Language(tree_sitter_go.language())
+}
+
+# ─── Universal Parser ───
+class UniversalTreeSitterParser:
+    def __init__(self, filepath: str, language_name: str, root_dir: str = ""):
+        self.filepath = filepath
+        if root_dir:
+            rel = os.path.relpath(filepath, root_dir)
+            self.module_name = Path(rel).with_suffix('').as_posix().replace('/', '.')
+        else:
+            self.module_name = Path(filepath).stem
             
-            # Direct name match
-            if call in node_names and node_names[call] != node['id']:
-                targets.append(node_names[call])
+        self.language_name = language_name
+        self.imports = []
+        self.local_symbols = {} # name -> resolved mapping
+        
+        self.nodes = [{
+            "id": self.module_name,
+            "type": "module",
+            "name": Path(filepath).stem,
+            "file": self.filepath,
+            "language": self.language_name,
+            "line_start": 1,
+            "imports": [],
+            "calls": []
+        }]
+        
+        self.api_libs = {
+            # HTTP/Web frameworks
+            'requests', 'httpx', 'flask', 'fastapi', 'django', 'axios', 'fetch',
+            # AI/ML libraries
+            'langchain', 'openai', 'anthropic', 'boto3', 'groq', 'huggingface',
+            # Common AI class names
+            'chatgroq', 'chatopenai', 'chatanthropic', 'huggingfaceembeddings',
+            'faiss', 'vectorstore', 'embeddings', 'llm',
+            # Document loaders
+            'pdfloader', 'unstructuredpdfloader', 'documentloader',
+            # Agents
+            'agent', 'create_react_agent', 'create_agent',
+            # Streamlit
+            'streamlit', 'st.',
+            # Database
+            'sqlalchemy', 'pymongo', 'redis', 'postgres'
+        }
+
+    def _get_text(self, node, source: bytes) -> str:
+        if not node: return ""
+        return source[node.start_byte:node.end_byte].decode('utf-8', errors='ignore')
+
+    def walk(self, node, source: bytes, parent_class=None, parent_function=None):
+        if not node: return
+        
+        # 1. IMPORTS & ALIASES
+        if node.type in ['import_statement', 'import_from_statement', 'import_declaration']:
+            imp_val = self._get_text(node, source).strip()
+            self.imports.append(imp_val)
+
+        # 2. CLASSES
+        is_class = node.type in ['class_definition', 'class_declaration']
+        if is_class:
+            name_node = node.child_by_field_name('name')
+            name = self._get_text(name_node, source) if name_node else f"AnonClass_{node.start_point[0]}"
+            class_id = f"{self.module_name}.{name}"
+            self.local_symbols[name] = class_id # Symbol table
             
-            # Method call pattern (e.g., "obj.method" -> "method")
-            if '.' in call:
-                method_name = call.split('.')[-1]
-                if method_name in node_names:
-                    targets.append(node_names[method_name])
-            
-            # Partial name matching for similar functions
-            for node_name, node_id in node_names.items():
-                if node_id != node['id'] and (
-                    call.lower() in node_name.lower() or 
-                    node_name.lower() in call.lower()
-                ):
-                    targets.append(node_id)
-            
-            for target in targets:
-                edges.append({
-                    "source": node['id'],
-                    "target": target,
-                    "type": "calls"
-                })
-        
-        # 2. Inheritance edges
-        for base in node.get('inherits', []):
-            if base in node_names:
-                edges.append({
-                    "source": node['id'],
-                    "target": node_names[base],
-                    "type": "structural"
-                })
-        
-        # 3. File-level dependencies (import edges)
-        node_file = node.get('file', '')
-        if node_file in imports:
-            for imported_module in imports[node_file]:
-                # Find nodes in imported files
-                for other_file, other_nodes in file_nodes.items():
-                    if imported_module in other_file or any(imported_module in part for part in other_file.split('/')):
-                        for target_id in other_nodes:
-                            if target_id != node['id']:
-                                edges.append({
-                                    "source": node['id'],
-                                    "target": target_id,
-                                    "type": "dependency"
-                                })
-        
-        # 4. Same-file relationships (high coupling)
-        node_file = node.get('file', '')
-        if node_file in file_nodes:
-            for sibling_id in file_nodes[node_file]:
-                if sibling_id != node['id']:
-                    edges.append({
-                        "source": node['id'],
-                        "target": sibling_id,
-                        "type": "dependency"
-                    })
-        
-        # 5. Class-method relationships
-        if node['type'] == 'class':
-            class_name = node['name']
-            if class_name in class_methods:
-                for method_id in class_methods[class_name]:
-                    edges.append({
-                        "source": node['id'],
-                        "target": method_id,
-                        "type": "structural"
-                    })
-        
-        # 6. API call containment
-        if node['type'] == 'api_call' and node.get('parent'):
-            edges.append({
-                "source": node['parent'],
-                "target": node['id'],
-                "type": "contains"
+            self.nodes.append({
+                "id": class_id, "type": "class", "name": name, "file": self.filepath,
+                "language": self.language_name, "line_start": node.start_point[0] + 1,
+                "loc": node.end_point[0] - node.start_point[0] + 1,
             })
+            parent_class = class_id
+
+        # 3. FUNCTIONS
+        is_func = node.type in ['function_definition', 'function_declaration', 'method_definition']
+        if is_func:
+            name_node = node.child_by_field_name('name')
+            name = self._get_text(name_node, source) if name_node else f"AnonFunc_{node.start_point[0]}"
+            func_id = f"{parent_class}.{name}" if parent_class else f"{self.module_name}.{name}"
+            self.local_symbols[name] = func_id
+            
+            # Entry points & Logic
+            is_entry = name in ['main', 'handler']
+            entry_type = 'unknown'
+            if is_entry: entry_type = 'main'
+            
+            # Look for decorators for routes
+            if node.prev_sibling and 'decorator' in node.prev_sibling.type:
+                dec_txt = self._get_text(node.prev_sibling, source).lower()
+                if any(verb in dec_txt for verb in ['@app', '@route', '@get', '@post', '@router', '@celery']):
+                    is_entry = True
+                    entry_type = 'http' if '@route' in dec_txt or '@get' in dec_txt or '@post' in dec_txt or '@app' in dec_txt else 'job'
+            
+            local_calls, api_calls, variables, params, data_flows, flags = self._extract_function_body(node, source, func_id)
+            
+            self.nodes.append({
+                "id": func_id, "type": "function", "name": name, "file": self.filepath,
+                "language": self.language_name, "line_start": node.start_point[0] + 1,
+                "loc": node.end_point[0] - node.start_point[0] + 1,
+                "calls": local_calls, "api_calls": [a['id'] for a in api_calls],
+                "variables": variables, "parameters": params,
+                "data_flows": data_flows, # [ {type: 'assigns_to', src: 'a', dst: 'b'} ]
+                "parent_class": parent_class,
+                "is_entry_point": is_entry, "entry_type": entry_type,
+                **flags # has_loop, has_conditional, etc.
+            })
+            self.nodes.extend(api_calls)
+            # Don't return here - continue walking to find more functions
+            parent_function = func_id
+
+        # 4. Top-level API Calls
+        if node.type in ['call', 'call_expression']:
+            fn = node.child_by_field_name('function')
+            c_name = self._get_text(fn, source)
+            if c_name and any(lib in c_name.lower() for lib in self.api_libs):
+                # Global API ID (no line number, no module-specific prefix)
+                api_id = f"api_global_{c_name.replace('.', '_')}"
+                self.nodes.append({
+                    "id": api_id,
+                    "type": "api_call", "name": c_name, "file": self.filepath,
+                    "language": self.language_name, "parent": self.module_name,
+                    "line": node.start_point[0] + 1
+                })
+
+        for child in node.children:
+            self.walk(child, source, parent_class, parent_function)
+
+    def _extract_function_body(self, func_node, source: bytes, func_id: str):
+        local_calls = []
+        api_nodes = []
+        variables = set()
+        params = []
+        data_flows = []
         
-        # 7. Data flow edges (shared variables/parameters)
-        node_vars = set(node.get('variables', []))
-        if node_vars:
-            for other_node in nodes:
-                if other_node['id'] != node['id']:
-                    other_vars = set(other_node.get('variables', []))
-                    shared_vars = node_vars.intersection(other_vars)
-                    if shared_vars:
-                        edges.append({
-                            "source": node['id'],
-                            "target": other_node['id'],
-                            "type": "flow",
-                            "shared_vars": list(shared_vars)
+        flags = {
+            'has_conditional': False, 'has_loop': False, 'has_try_catch': False,
+            'has_throw': False, 'has_async_await': False, 'has_lock_usage': False,
+            'has_eval': False, 'has_shell_call': False, 'has_file_access': False, 'has_env_access': False
+        }
+        
+        queue = [func_node]
+        while queue:
+            curr = queue.pop(0)
+            
+            # Flags
+            if curr.type in ['if_statement', 'switch_statement']: flags['has_conditional'] = True
+            elif curr.type in ['for_statement', 'while_statement']: flags['has_loop'] = True
+            elif curr.type in ['try_statement']: flags['has_try_catch'] = True
+            elif curr.type in ['raise_statement', 'throw_statement']: flags['has_throw'] = True
+            elif curr.type in ['await_expression']: flags['has_async_await'] = True
+            
+            # Params
+            if curr.type in ['formal_parameters', 'parameters']:
+                for p in curr.children:
+                    if p.type == 'identifier':
+                        params.append(self._get_text(p, source))
+            
+            # Assignments (Data Flow: RHS -> LHS)
+            if curr.type == 'assignment':
+                lhs = curr.child_by_field_name('left')
+                rhs = curr.child_by_field_name('right')
+                if lhs and rhs:
+                    lhs_txt = self._get_text(lhs, source)
+                    if rhs.type in ['call', 'call_expression']:
+                        data_flows.append({"type": "returns_to", "src": self._get_text(rhs.child_by_field_name('function'), source), "dst": lhs_txt})
+                    else:
+                        data_flows.append({"type": "assigns_to", "src": "expr", "dst": lhs_txt})
+            
+            # Calls
+            if curr.type in ['call', 'call_expression']:
+                func_name_node = curr.child_by_field_name('function')
+                call_name = self._get_text(func_name_node, source)
+                if call_name:
+                    local_calls.append({"name": call_name, "qualified": '.' in call_name})
+                    
+                    nl = call_name.lower()
+                    if 'eval' in nl: flags['has_eval'] = True
+                    if 'subprocess' in nl or 'exec' in nl: flags['has_shell_call'] = True
+                    if 'open' in nl or 'fs.' in nl: flags['has_file_access'] = True
+                    if 'environ' in nl or 'process.env' in nl: flags['has_env_access'] = True
+                    if 'lock' in nl or 'mutex' in nl: flags['has_lock_usage'] = True
+
+                    if any(lib in nl for lib in self.api_libs):
+                        # Global API ID (no line number, no function-specific prefix)
+                        api_id = f"api_global_{call_name.replace('.', '_')}"
+                        api_nodes.append({
+                            "id": api_id,
+                            "type": "api_call", "name": call_name, "file": self.filepath,
+                            "language": self.language_name, "parent": func_id,
+                            "line": curr.start_point[0] + 1  # Track line for reference
                         })
+            
+            if curr.type == 'identifier':
+                vname = self._get_text(curr, source)
+                if vname not in ['self', 'cls', 'this']: variables.add(vname)
+            
+            for ch in curr.children: queue.append(ch)
+                
+        return local_calls, api_nodes, list(variables - set(params)), params, data_flows, flags
+
+def parse_file(filepath: str, **kwargs) -> Dict[str, Any]:
+    language_name = detect_language(filepath)
+    if language_name not in TS_LANGUAGES:
+        return {"file": filepath, "language": "unknown", "nodes": [], "imports": [], "symbols": {}}
+
+    try:
+        with open(filepath, 'rb') as f: source = f.read()
+        visitor = UniversalTreeSitterParser(filepath, language_name, root_dir=kwargs.get('root_dir', ''))
+        visitor.walk(tree_sitter.Parser(TS_LANGUAGES[language_name]).parse(source).root_node, source)
+        return {"file": filepath, "language": language_name, "nodes": visitor.nodes, "imports": visitor.imports, "symbols": visitor.local_symbols}
+    except Exception as e:
+        print(f"Error parsing {filepath}: {e}")
+        return {"file": filepath, "language": language_name, "nodes": [], "imports": [], "symbols": {}}
+
+# ─── Import Resolution ───
+
+def build_import_edges(module_imports: Dict[str, List[str]], module_ids: set) -> List[Dict]:
+    """Resolve import statements to module IDs and create depends_on edges.
     
-    # Remove duplicate edges
-    seen_edges = set()
+    Args:
+        module_imports: {module_id: [raw_import_strings]}
+        module_ids: set of all known module node IDs in the graph
+    Returns:
+        List of edges with type 'depends_on'
+    """
+    import re
+    edges = []
+    seen = set()
+
+    for src_module, imports in module_imports.items():
+        for imp_str in imports:
+            # Extract the base module name from various import forms:
+            #   'import foo'           -> 'foo'
+            #   'from foo import bar'  -> 'foo'
+            #   'from foo.bar import X'-> 'foo.bar', then 'foo'
+            #   'import foo.bar'       -> 'foo.bar', then 'foo'
+            target_module = None
+
+            m = re.match(r'^from\s+([\w.]+)\s+import', imp_str)
+            if m:
+                target_module = m.group(1)
+            else:
+                m = re.match(r'^import\s+([\w.]+)', imp_str)
+                if m:
+                    target_module = m.group(1)
+
+            if not target_module:
+                continue
+
+            # Try exact match first, then progressively shorten dotted path
+            candidates = []
+            parts = target_module.split('.')
+            for i in range(len(parts), 0, -1):
+                candidates.append('.'.join(parts[:i]))
+
+            for candidate in candidates:
+                if candidate in module_ids and candidate != src_module:
+                    key = (src_module, candidate)
+                    if key not in seen:
+                        seen.add(key)
+                        edges.append({
+                            "source": src_module,
+                            "target": candidate,
+                            "type": "depends_on",
+                            "confidence": 1.0,
+                        })
+                    break  # first (most specific) match wins
+
+    return edges
+
+
+# ─── Symbol Resolution & Edge Building ───
+
+def build_edges(nodes: List[Dict], all_symbols: Dict[str, str]) -> List[Dict]:
+    edges = []
+    node_by_id = {n['id']: n for n in nodes}
+    class_methods = {}
+    
+    for n in nodes:
+        if n['type'] == 'function' and n.get('parent_class'):
+            class_methods.setdefault(n['parent_class'], []).append(n['id'])
+
+    for node in nodes:
+        # Calls (with confidence)
+        for call_info in node.get('calls', []):
+            if isinstance(call_info, str): call_name = call_info # Fallback
+            else: call_name = call_info.get('name', '')
+            
+            targets = []
+            confidence = 0.0
+
+            # 1. Exact local match mapping
+            if call_name in all_symbols:
+                targets.append(all_symbols[call_name])
+                confidence = 1.0
+            # 2. Heuristic: Dotted resolution (e.g. obj.method -> find method)
+            elif '.' in call_name:
+                method = call_name.split('.')[-1]
+                for n_id in node_by_id:
+                    if n_id.endswith(f".{method}"):
+                        targets.append(n_id)
+                        confidence = 0.6
+                        break # First match heuristic
+
+            # Add Edge if confident enough
+            for t in targets:
+                if confidence >= 0.5:
+                    edges.append({"source": node['id'], "target": t, "type": "calls", "confidence": confidence})
+
+        # Inheritance (structural)
+        for base in node.get('inherits', []):
+            if base in all_symbols:
+                edges.append({"source": node['id'], "target": all_symbols[base], "type": "structural", "confidence": 1.0})
+
+        # Class Containment (use 'contains' type instead of 'structural')
+        if node['type'] == 'class':
+            for mid in class_methods.get(node['id'], []):
+                edges.append({"source": node['id'], "target": mid, "type": "contains", "confidence": 1.0})
+
+        # API Usage - function uses API call
+        # For deduplicated API nodes, create edges from all functions that use it
+        if node['type'] == 'api_call':
+            # New: Handle deduplicated API nodes with 'used_by' list
+            if 'used_by' in node:
+                for parent_id in node['used_by']:
+                    if parent_id and parent_id in node_by_id:
+                        edges.append({"source": parent_id, "target": node['id'], "type": "uses_api", "confidence": 1.0})
+            # Fallback: Old single-parent format
+            elif node.get('parent'):
+                edges.append({"source": node['parent'], "target": node['id'], "type": "uses_api", "confidence": 1.0})
+
+    # Deduplicate edges while preserving different edge types between same nodes
+    seen = set()
     unique_edges = []
     for edge in edges:
-        edge_key = (edge['source'], edge['target'], edge['type'])
-        if edge_key not in seen_edges:
-            seen_edges.add(edge_key)
+        # Create a key that includes source, target, AND type
+        key = (edge['source'], edge['target'], edge['type'])
+        if key not in seen:
+            seen.add(key)
             unique_edges.append(edge)
     
-    print(f"Built {len(unique_edges)} edges from static analysis")
     return unique_edges
+
+@traceable(project_name="CodeForge")
+def build_cpg(path: str, job_id: str) -> Dict[str, Any]:
+    print(f"Building Enhanced CPG for {path}")
+    working_dir = extract_archive(path, tempfile.mkdtemp(prefix=f"cpg_{job_id}_")) if path.endswith('.zip') else path
+    
+    all_nodes = []
+    global_symbols = {}
+    module_imports = {}  # module_id -> [import_strings]
+    
+    for filepath in find_code_files(working_dir):
+        res = parse_file(filepath, root_dir=working_dir)
+        all_nodes.extend(res['nodes'])
+        # Merge symbols for cross-file resolution (naive global namespace for prototype)
+        global_symbols.update(res.get('symbols', {}))
+        # Collect imports keyed by module node ID
+        for n in res['nodes']:
+            if n.get('type') == 'module':
+                module_imports[n['id']] = res.get('imports', [])
+    
+    # Deduplicate API nodes globally
+    api_nodes = {}  # api_id -> merged node
+    non_api_nodes = []
+    
+    for node in all_nodes:
+        if node.get('type') == 'api_call':
+            api_id = node['id']
+            if api_id not in api_nodes:
+                # First occurrence - initialize with usage tracking
+                api_nodes[api_id] = {
+                    **node,
+                    'usage_count': 1,
+                    'used_by': [node.get('parent')],
+                    'files': [node.get('file')],
+                    'lines': [node.get('line')]
+                }
+            else:
+                # Duplicate - merge usage data
+                api_nodes[api_id]['usage_count'] += 1
+                if node.get('parent') not in api_nodes[api_id]['used_by']:
+                    api_nodes[api_id]['used_by'].append(node.get('parent'))
+                if node.get('file') not in api_nodes[api_id]['files']:
+                    api_nodes[api_id]['files'].append(node.get('file'))
+                api_nodes[api_id]['lines'].append(node.get('line'))
+        else:
+            non_api_nodes.append(node)
+    
+    # Combine deduplicated API nodes with other nodes
+    unique_nodes = non_api_nodes + list(api_nodes.values())
+    
+    print(f"[CPG] Deduplicated {len(all_nodes) - len(unique_nodes)} duplicate API nodes")
+    print(f"[CPG] Total nodes: {len(unique_nodes)} ({len(non_api_nodes)} code entities + {len(api_nodes)} unique APIs)")
+    
+    unique_nodes = {n['id']: n for n in unique_nodes}.values()
+    
+    G = nx.DiGraph()
+    for node in unique_nodes: G.add_node(node['id'], **node)
+    
+    edges = build_edges(list(unique_nodes), global_symbols)
+    
+    # Build inter-file dependency edges from import resolution
+    module_ids = {n['id'] for n in unique_nodes if n.get('type') == 'module'}
+    import_edges = build_import_edges(module_imports, module_ids)
+    edges.extend(import_edges)
+    print(f"[CPG] Resolved {len(import_edges)} inter-file dependency edges")
+    
+    for e in edges: G.add_edge(e['source'], e['target'], type=e['type'], confidence=e['confidence'])
+    
+    # Feature Engineering Injection
+    from graph_features import compute_graph_features
+    G = compute_graph_features(G)
+    
+    # Expose for frontend
+    res_nodes = [data for _, data in G.nodes(data=True)]
+    res_edges = [{"id": f"e_{u}_{v}", "source": u, "target": v, "type": data.get('type', 'calls')} for u, v, data in G.edges(data=True)]
+    
+    return {"nodes": res_nodes, "edges": res_edges, "nx_graph": G}

@@ -35,7 +35,8 @@ This document outlines the roadmap for enhancing the CodeForge application with 
 
 ## 7. Pipeline Integration
 
-- **End-to-End Automation**: Fully integrate `gnn_pipeline.py` and `clustering.py` into the main FastAPI `run_pipeline` to ensure every analysis benefit from AI-driven clustering.
+- **End-to-End Automation**: Fully integrate `clustering.py` into the main FastAPI `run_pipeline` to ensure every analysis benefits from AI-driven clustering.
+- **Optional GNN Module**: Add back GNN training as an optional advanced feature for teams that want enhanced embeddings.
 
 ---
 *Note: This roadmap follows enterprise best practices for scalable code analysis and microservices decomposition.*

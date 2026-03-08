@@ -10,9 +10,9 @@ CodeForge analyzes your codebase and provides intelligent recommendations for de
 
 2. **Code Property Graph Construction** - Building a comprehensive Code Property Graph (CPG) that maps all functions, classes, methods, and their relationships including calls, imports, inheritance, and data flow
 
-3. **AI-Powered Relationship Discovery** - Using LLM models (GPT-4, GPT-3.5, or compatible APIs) hosted on cloud infrastructure to discover semantic relationships between code components that static analysis might miss, including logical coupling, architectural patterns, and cross-cutting concerns
+3. **AI-Powered Relationship Discovery** - Using AWS Bedrock Claude models (Haiku, Sonnet, Opus) in a multi-model orchestration pipeline to discover semantic relationships between code components that static analysis might miss, including logical coupling, architectural patterns, and cross-cutting concerns
 
-4. **Graph Neural Network Embeddings** - Applying Graph Neural Networks (GNN) with 3-layer Graph Convolutional Networks to generate 128-dimensional embeddings that capture both structural and semantic code patterns
+4. **Feature Engineering & Embeddings** - Generating 128-dimensional embeddings using TF-IDF vectorization combined with structural graph features (centrality, depth, fan-in/out) to capture both semantic and topological code patterns
 
 5. **AI Risk Assessment** - Performing risk assessment on each component using AI to identify potential failure points, analyzing code complexity, dependencies, state mutation patterns, and error handling
 
@@ -20,7 +20,7 @@ CodeForge analyzes your codebase and provides intelligent recommendations for de
 
 7. **Comprehensive Reports** - Producing detailed markdown reports with service recommendations, dependency analysis, migration roadmaps, and actionable next steps
 
-The system combines traditional static analysis with cloud-hosted AI models to understand not just how code is connected, but why it's connected - identifying logical coupling, architectural patterns, and cross-cutting concerns. This hybrid approach provides more accurate microservice recommendations than purely rule-based tools, helping teams modernize legacy applications with confidence.
+The system combines traditional static analysis with AWS Bedrock's Claude models in a three-role orchestration (Mapper, Linker, Sentinel) to understand not just how code is connected, but why it's connected - identifying logical coupling, architectural patterns, and cross-cutting concerns. This hybrid approach provides more accurate microservice recommendations than purely rule-based tools, helping teams modernize legacy applications with confidence.
 
 ## Current Features
 
@@ -28,11 +28,11 @@ The system combines traditional static analysis with cloud-hosted AI models to u
 - Multi-language AST parsing (Python, JavaScript, TypeScript, Java, Go)
 - Code Property Graph (CPG) construction with nodes and edges
 - Static relationship discovery (function calls, imports, inheritance)
-- LLM-enhanced semantic relationship discovery with batch processing
+- Multi-model LLM orchestration (Mapper, Linker, Sentinel) with AWS Bedrock
 - Heuristic fallback for reliability when LLM unavailable
-- Risk assessment using AI (low/medium/high risk levels)
-- GNN pipeline with PyTorch Geometric (3-layer GCN)
-- 128-dimensional node embeddings
+- Risk assessment using AI (4-tier risk classification: 0-3)
+- TF-IDF + structural feature engineering for embeddings
+- 128-dimensional node embeddings (64 text + 64 structural)
 - Interactive React Flow visualization
 - Real-time progress tracking
 - REST API with FastAPI
@@ -107,21 +107,24 @@ The system combines traditional static analysis with cloud-hosted AI models to u
 **Backend:**
 - Python 3.9+
 - FastAPI (REST API)
-- PyTorch + PyTorch Geometric (GNN)
 - NetworkX (Graph analysis)
-- scikit-learn (ML utilities)
-- OpenAI SDK (LLM integration)
+- scikit-learn (TF-IDF, clustering)
+- boto3 (AWS Bedrock integration)
+- Tree-sitter (Multi-language parsing)
 - LangSmith (LLM tracing)
 - GitPython (Repository cloning)
 
 **Frontend:**
 - React 18
-- React Flow (Graph visualization)
+- Sigma.js (Force-directed graph visualization)
+- React Flow (Hierarchical tree visualization)
 - Tailwind CSS (Styling)
 - Vite (Build tool)
+- Zustand (State management)
+- Framer Motion (Animations)
 
 **Infrastructure:**
-- Cloud-hosted LLM APIs (provider-agnostic)
+- AWS Bedrock (Claude models)
 - PostgreSQL + pgvector (Optional)
 - Docker + Docker Compose
 

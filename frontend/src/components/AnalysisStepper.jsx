@@ -4,12 +4,13 @@ import { motion } from 'framer-motion';
 import clsx from 'clsx';
 
 const steps = [
-    { title: 'Code Parsing', description: 'Building CPG' },
-    { title: 'AI Discovery', description: 'LLM Analysis' },
-    { title: 'GNN Learning', description: 'Structural Embeddings' },
-    { title: 'Service Clustering', description: 'Louvain Algorithm' },
-    { title: 'Graph Metrics', description: 'Analyzing Topology' },
-    { title: 'Report Generation', description: 'Finalizing Blueprint' }
+    { title: 'Code Parsing', description: 'Building Code Property Graph' },
+    { title: 'Risk Profiling', description: 'Building Risk AST Profiles' },
+    { title: 'AI Analysis', description: 'Mapper, Linker & Sentinel' },
+    { title: 'Edge Validation', description: 'Validating Relationships' },
+    { title: 'Embeddings', description: 'Generating Node Embeddings' },
+    { title: 'Graph Analysis', description: 'Computing Statistics' },
+    { title: 'Report Generation', description: 'Finalizing Results' }
 ];
 
 const AnalysisStepper = ({ currentStep, message }) => {

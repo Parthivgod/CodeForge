@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { analyzeMonolith, getStatus, getResults } from './api';
 import HeroSection from './components/HeroSection';
+import HowItWorks from './components/HowItWorks';
+import Footer from './components/Footer';
 import UploadZone from './components/UploadZone';
 import ResultsDashboard from './components/ResultsDashboard';
 import AnalysisStepper from './components/AnalysisStepper';
@@ -95,14 +97,18 @@ function App() {
 
       <main className="relative z-10 w-full">
         {view === 'hero' && (
-          <HeroSection onStart={handleStart} />
+          <>
+            <HeroSection onStart={handleStart} />
+            <HowItWorks />
+            <Footer />
+          </>
         )}
 
         {view === 'analysis' && (
           <div className="min-h-screen flex flex-col items-center pt-20 px-4">
-            <h2 className="text-4xl font-bold mb-4">Upload Codebase</h2>
+            <h2 className="text-4xl font-bold mb-4">Analyze Your Codebase</h2>
             <p className="text-slate-400 mb-10 text-center max-w-lg">
-              We'll analyze your dependencies, generate a Code Property Graph, and identify microservice boundaries.
+              Upload your code to generate a Code Property Graph, discover relationships, and identify security risks with AI-powered analysis.
             </p>
             <UploadZone
               onUpload={handleAnalysis}

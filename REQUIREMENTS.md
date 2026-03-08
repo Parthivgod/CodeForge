@@ -21,28 +21,25 @@ Core libraries:
 - **networkx** - Graph analysis and algorithms
 - **scikit-learn** - TF-IDF vectorization, clustering
 - **numpy** - Numerical operations
-- **openai** - LLM API client
+- **boto3** - AWS Bedrock client for LLM integration
 - **GitPython** - Git repository cloning
 - **python-dotenv** - Environment variable management
 - **langsmith** - LLM tracing and monitoring
 - **aiofiles** - Async file operations
 - **python-multipart** - File upload handling
 
-### GNN Support
-- **torch** - PyTorch deep learning framework
-- **torch-geometric** - Graph neural network library
+### GNN Support (Optional - Not Currently Used)
 
-Install PyTorch:
+The system previously used PyTorch and PyTorch Geometric for GNN-based embeddings, but has been refactored to use TF-IDF + structural features instead. If you want to add back GNN capabilities:
+
 ```bash
 # CPU version
 pip install torch torchvision torchaudio
 
 # GPU version (CUDA 11.8)
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-```
 
-Install PyTorch Geometric:
-```bash
+# PyTorch Geometric
 pip install torch-geometric
 ```
 
@@ -53,23 +50,27 @@ pip install torch-geometric
 
 ### LLM Models
 
-Supported providers:
-- **Azure OpenAI** (recommended)
-- **OpenAI API**
-- **Compatible APIs** (OpenRouter, local models)
+Supported provider:
+- **AWS Bedrock** (Claude models via boto3)
 
 Used models:
-
-kimi-k2-thinking
+- Claude 3 Haiku (Mapper - fast classification)
+- Claude 3 Sonnet (Linker - relation extraction)
+- Claude 3 Opus (Sentinel - deep risk analysis)
 
 ### Environment Variables
 
 Create `.env` file:
 ```bash
-# LLM Configuration
-LLM_MODEL=kimi-k2-thinking
-AZURE_OPENAI_ENDPOINT=https://your-endpoint.openai.azure.com/openai/v1/
-AZURE_OPENAI_API_KEY=your-api-key
+# AWS Bedrock Configuration
+AWS_ACCESS_KEY_ID=your_key
+AWS_SECRET_ACCESS_KEY=your_secret
+AWS_REGION=us-east-1
+
+# Model IDs for Multi-Model Orchestrator
+MODEL_MAPPER=anthropic.claude-3-haiku-20240307-v1:0
+MODEL_LINKER=anthropic.claude-3-sonnet-20240229-v1:0
+MODEL_SENTINEL=anthropic.claude-3-opus-20240229-v1:0
 
 # Database (optional)
 DATABASE_URL=postgresql://user:password@localhost:5432/monolith
@@ -104,13 +105,13 @@ npm start
 
 ### 2. Relationship Discovery
 - Static analysis (function calls, imports, inheritance)
-- LLM-enhanced semantic analysis (logical coupling, patterns)
+- Multi-model LLM orchestration (Mapper, Linker, Sentinel) with AWS Bedrock
 - Heuristic fallback for reliability
 
-### 3. GNN Embeddings 
-- 128-dimensional node embeddings
-- Graph Convolutional Networks (GCN)
-- Self-supervised training
+### 3. Feature Engineering & Embeddings
+- 128-dimensional node embeddings (64 text + 64 structural)
+- TF-IDF vectorization for semantic features
+- Structural graph metrics (centrality, depth, fan-in/out)
 
 ### 4. Risk Assessment
 - Component-level risk analysis
@@ -118,8 +119,9 @@ npm start
 - Risk levels: low, medium, high
 
 ### 5. Visualization
-- Interactive graph with React Flow
-- Color-coded nodes by type
+- Interactive graph with Sigma.js (force-directed layout)
+- File tree view with React Flow (hierarchical layout)
+- Color-coded nodes by type and risk level
 - Risk indicators (borders, glow effects)
 
 ### 6. Reports

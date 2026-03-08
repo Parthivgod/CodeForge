@@ -35,3 +35,15 @@ export const getResults = async (jobId) => {
     const response = await axios.get(`${API_Base}/results/${jobId}`);
     return response.data;
 };
+
+export const getNeighbors = async (nodeId) => {
+    const response = await axios.get(`${API_Base}/api/graph/neighbors`, {
+        params: { id: nodeId },
+    });
+    return response.data;
+};
+
+export const getNodeDetails = async (jobId, nodeId) => {
+    const response = await axios.get(`${API_Base}/node/${jobId}/${nodeId}`);
+    return response.data;
+};

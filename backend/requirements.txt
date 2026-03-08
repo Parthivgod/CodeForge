@@ -7,10 +7,17 @@ networkx
 python-multipart
 # torch # CPU version usually installed separately, but we can list it
 # torch-geometric
-python-dotenv
+python-dotenv==1.0.1
 aiofiles
+boto3==1.34.0
+tree-sitter==0.21.3
+tree-sitter-python
+tree-sitter-javascript
+tree-sitter-typescript
+tree-sitter-java
+tree-sitter-go
+
 openai
 GitPython
 scikit-learn
-numpy
 langsmith

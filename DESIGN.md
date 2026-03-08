@@ -9,7 +9,8 @@
 │                         Frontend (React)                         │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
 │  │ Upload UI    │  │ Visualization│  │ Report View  │          │
-│  │              │  │ (React Flow) │  │              │          │
+│  │              │  │ (Sigma.js +  │  │              │          │
+│  │              │  │  React Flow) │  │              │          │
 │  └──────────────┘  └──────────────┘  └──────────────┘          │
 └────────────────────────────┬────────────────────────────────────┘
                              │ REST API
@@ -21,8 +22,8 @@
 │                             │                                    │
 │  ┌──────────────┬───────────┴───────────┬──────────────────┐  │
 │  │              │                       │                   │  │
-│  │  CPG Builder │  LLM Relation        │  GNN Pipeline     │  │
-│  │              │  Discovery           │                   │  │
+│  │  CPG Builder │  Multi-Model         │  Feature Eng.     │  │
+│  │              │  Orchestrator        │  (Embeddings)     │  │
 │  └──────────────┘  └───────────────────┘  └───────────────┘  │
 │                             │                                    │
 │  ┌──────────────┬───────────┴───────────┬──────────────────┐  │
@@ -35,8 +36,8 @@
 ┌────────────────────────────┴────────────────────────────────────┐
 │                    External Services                             │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │ Azure OpenAI │  │ PostgreSQL   │  │ LangSmith    │          │
-│  │ / OpenAI     │  │ + pgvector   │  │ (Tracing)    │          │
+│  │ AWS Bedrock  │  │ PostgreSQL   │  │ LangSmith    │          │
+│  │ (Claude)     │  │ + pgvector   │  │ (Tracing)    │          │
 │  └──────────────┘  └──────────────┘  └──────────────┘          │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -45,16 +46,16 @@
 
 #### Frontend Components
 - **Upload Interface**: File/URL input, validation
-- **Progress Tracker**: Real-time analysis status
-- **Graph Visualization**: Interactive React Flow diagram
+- **Progress Tracker**: Real-time analysis status with stepper
+- **Graph Visualization**: Interactive Sigma.js force-directed graph
+- **Tree Visualization**: React Flow hierarchical file tree
 - **Service Dashboard**: Metrics and statistics
-- **Report Viewer**: Markdown/HTML report display
+- **Report Viewer**: Markdown report display
 
 #### Backend Components
 - **API Layer**: FastAPI endpoints, request handling
-- **CPG Builder**: Multi-language AST parsing
-- **Relationship Discovery**: Static + LLM analysis
-- **GNN Pipeline**: Embedding generation and training.
-    - **Feature Engineering**: Combines TF-IDF node semantics with structural metrics (LoC, Fan-in/out).
-    - **GCN model**: A 3-layer Graph Convolutional Network that learns latent architectural representations.
-    - **Self-Supervised Learning**: Model trains on graph reconstruction to capture structural context.
+- **CPG Builder**: Multi-language AST parsing with Tree-sitter
+- **Graph Features**: Topological metrics (centrality, depth, fan-in/out)
+- **Risk AST**: Security-focused AST profile generation
+- **Multi-Model Orchestrator**: Three-role LLM pipeline (Mapper, Linker, Sentinel)
+- **Feature Engineering**: TF-IDF + structural embeddings (128-dimensional)
