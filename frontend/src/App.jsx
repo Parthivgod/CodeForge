@@ -37,9 +37,13 @@ function App() {
   };
 
   const pollStatus = async (id) => {
+    let errorCount = 0;
+    const maxErrors = 3;
+    
     const interval = setInterval(async () => {
       try {
         const res = await getStatus(id);
+        errorCount = 0; // Reset error count on successful response
         setStatus(res.status);
 
         if (res.status === 'Done') {
@@ -62,7 +66,13 @@ function App() {
       } catch (err) {
         // Handle polling connection errors
         console.error("Polling error:", err);
-        // Only stop polling if it's a persistent error
+        errorCount++;
+        
+        if (errorCount >= maxErrors) {
+          clearInterval(interval);
+          setLoading(false);
+          setError("Lost connection to backend. The server may have restarted or the job ID is invalid. Please try again.");
+        }
       }
     }, 2000);
   };
