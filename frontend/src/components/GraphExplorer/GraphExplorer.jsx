@@ -21,12 +21,14 @@ const GraphExplorer = ({ nodes, edges }) => {
 
                 {/* Right detail panel */}
                 <div
-                    className={`transition-all duration-300 border-l border-slate-800 bg-slate-900/70 backdrop-blur-md flex-shrink-0 flex flex-col ${selectedNodeId ? 'w-80 min-w-[320px]' : 'w-0 min-w-0 overflow-hidden'
+                    className={`transition-all duration-300 border-l border-slate-800 bg-slate-900/70 backdrop-blur-md flex-shrink-0 overflow-y-auto ${selectedNodeId ? 'w-80 min-w-[320px]' : 'w-0 min-w-0 overflow-hidden'
                         }`}
                 >
-                    <div className="overflow-y-auto flex-1 p-4">
-                        <NodeDetailPanel />
-                    </div>
+                    {selectedNodeId && (
+                        <div className="p-4">
+                            <NodeDetailPanel />
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

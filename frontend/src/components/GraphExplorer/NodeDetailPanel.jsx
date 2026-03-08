@@ -56,7 +56,7 @@ const NodeDetailPanel = () => {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             key={selectedNode.id}
-            className="space-y-3"
+            className="space-y-3 min-h-full"
         >
             {/* Header */}
             <div className="flex items-center justify-between">
