@@ -1,6 +1,6 @@
 
 import { motion } from 'framer-motion';
-import { ArrowRight, Shield, GitBranch, Zap, Eye, Brain, Network } from 'lucide-react';
+import { ArrowRight, Shield, GitBranch, Zap, Eye, Brain, Network, Github } from 'lucide-react';
 
 const HeroSection = ({ onStart }) => {
     return (
@@ -61,11 +61,12 @@ const HeroSection = ({ onStart }) => {
                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </button>
                 <a
-                    href="https://github.com/yourusername/codeforge"
+                    href="https://github.com/Parthivgod/CodeForge"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-8 py-4 bg-slate-800/50 hover:bg-slate-800 text-white rounded-xl font-medium border border-white/5 transition-all hover:scale-105 backdrop-blur-sm"
+                    className="group px-8 py-4 bg-slate-800/50 hover:bg-slate-800 text-white rounded-xl font-medium border border-white/5 transition-all hover:scale-105 backdrop-blur-sm flex items-center gap-2"
                 >
+                    <Github className="w-5 h-5" />
                     View on GitHub
                 </a>
             </motion.div>
