@@ -1,24 +1,6 @@
 version: '3.8'
 
 services:
-  db:
-    image: ankane/pgvector:v0.4.1
-    container_name: codeforge-db
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
-      POSTGRES_DB: ${POSTGRES_DB:-monolith}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-user}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
   backend:
     build:
       context: ./backend
@@ -27,7 +9,6 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-monolith}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_REGION=${AWS_REGION:-us-east-1}
@@ -40,11 +21,7 @@ services:
       - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
       - LANGSMITH_PROJECT=${LANGSMITH_PROJECT}
     volumes:
-      - ./backend:/app
       - backend_temp:/app/temp
-    depends_on:
-      db:
-        condition: service_healthy
     restart: unless-stopped
 
   frontend:
@@ -65,5 +42,4 @@ services:
     command: npm run dev -- --host 0.0.0.0
 
 volumes:
-  postgres_data:
   backend_temp:
