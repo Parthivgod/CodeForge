@@ -1,4 +1,4 @@
-﻿import { motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import useGraphStore from '../../store/useGraphStore';
 import { Database, X, MapPin, Phone, Shield, AlertTriangle, MousePointerClick } from 'lucide-react';
