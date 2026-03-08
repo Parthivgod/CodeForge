@@ -8,7 +8,6 @@ from typing import List
 import time
 from cpg_builder import build_cpg
 from orchestrator import discover_relations_orchestrated
-from docs_gen import generate_report
 from risk_ast import build_risk_ast
 from feature_engineering import generate_embeddings
 from langsmith import traceable
