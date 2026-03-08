@@ -137,7 +137,8 @@ const SigmaRenderer = ({ nodes, edges }) => {
             const fileId = `__file__${filePath}`;
             fileNodeIds[filePath] = new Set(children.map((c) => c.id));
 
-            if (expandedFiles.has(filePath)) {
+            // Auto-expand files with only 1 function, or manually expanded files
+            if (children.length === 1 || expandedFiles.has(filePath)) {
                 for (const child of children) {
                     vNodes.push(child);
                 }
@@ -224,7 +225,9 @@ const SigmaRenderer = ({ nodes, edges }) => {
             const type = n.type || 'function';
 
             const rawLabel = n._isFileNode
-                ? `📄 ${n.name}  (${n._childCount})`
+                ? n._childCount === 1
+                    ? `📄 ${n.name}`  // No count for single-function files
+                    : `📄 ${n.name}  (${n._childCount})`
                 : n.name || n.id;
             const label = truncateLabel(rawLabel, n._isFileNode ? 28 : 24);
 
