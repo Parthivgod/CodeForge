@@ -34,8 +34,8 @@ const UploadZone = ({ onUpload, onGitAnalyze, loading, onBack }) => {
     };
 
     return (
-        <div className="w-full max-w-2xl mx-auto -mt-20 relative z-10 p-6">
-            <div className="glass-card rounded-2xl p-2 md:p-8">
+        <div className="w-full max-w-2xl mx-auto relative z-10 p-6">
+            <div className="glass-card rounded-2xl p-2 md:p-8 shadow-2xl">
 
                 {/* Tabs */}
                 {onBack && (

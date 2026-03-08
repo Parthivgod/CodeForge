@@ -106,10 +106,14 @@ function App() {
 
         {view === 'analysis' && (
           <div className="min-h-screen flex flex-col items-center pt-20 px-4">
-            <h2 className="text-4xl font-bold mb-4">Analyze Your Codebase</h2>
-            <p className="text-slate-400 mb-10 text-center max-w-lg">
-              Upload your code to generate a Code Property Graph, discover relationships, and identify security risks with AI-powered analysis.
-            </p>
+            <div className="text-center mb-12 relative z-0">
+              <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
+                Analyze Your Codebase
+              </h2>
+              <p className="text-slate-400 text-lg max-w-2xl mx-auto leading-relaxed">
+                Upload your code to generate a Code Property Graph, discover relationships, and identify security risks with AI-powered analysis.
+              </p>
+            </div>
             <UploadZone
               onUpload={handleAnalysis}
               onGitAnalyze={handleAnalysis}
