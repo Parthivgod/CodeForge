@@ -163,6 +163,12 @@ def get_report(job_id: str):
 def health_check():
     return {"status": "healthy"}
 
+if __name__ == "__main__":
+    import uvicorn
+    import os
+    port = int(os.environ.get("PORT", 10000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
+
 @traceable(project_name="CodeForge")
 def run_pipeline(job_id: str, zip_path: str):
     try:
