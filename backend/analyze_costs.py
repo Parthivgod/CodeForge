@@ -3,10 +3,10 @@ Cost Analysis Utility for AWS Bedrock Token Usage
 
 This script analyzes token_usage.txt and calculates costs based on AWS Bedrock pricing.
 
-AWS Bedrock Claude 3 Pricing (per 1M tokens):
-- Mapper (Haiku):  $0.15 input, $0.60 output
-- Linker (Sonnet): $0.80 input, $3.20 output  
-- Sentinel (Opus): $1.35 input, $5.40 output
+AWS Bedrock Model Pricing (per 1M tokens):
+- Mapper (GPT-OSS-120B):  $0.15 input, $0.60 output
+- Linker (Nova Pro):      $0.80 input, $3.20 output  
+- Sentinel (DeepSeek R1): $1.35 input, $5.40 output
 """
 
 import os
@@ -15,20 +15,20 @@ from collections import defaultdict
 
 # Pricing per 1M tokens (USD) - Updated pricing
 PRICING = {
-    "haiku": {"input": 0.15, "output": 0.60},
-    "sonnet": {"input": 0.80, "output": 3.20},
-    "opus": {"input": 1.35, "output": 5.40},
+    "gpt-oss": {"input": 0.15, "output": 0.60},
+    "nova-pro": {"input": 0.80, "output": 3.20},
+    "deepseek-r1": {"input": 1.35, "output": 5.40},
 }
 
 def get_model_type(model_id: str) -> str:
     """Extract model type from model ID."""
     model_lower = model_id.lower()
-    if "haiku" in model_lower:
-        return "haiku"
-    elif "sonnet" in model_lower:
-        return "sonnet"
-    elif "opus" in model_lower:
-        return "opus"
+    if "gpt-oss" in model_lower or "openai" in model_lower:
+        return "gpt-oss"
+    elif "nova" in model_lower:
+        return "nova-pro"
+    elif "deepseek" in model_lower or "r1" in model_lower:
+        return "deepseek-r1"
     return "unknown"
 
 def analyze_token_usage(log_file: str = "token_usage.txt"):
@@ -96,13 +96,13 @@ def analyze_token_usage(log_file: str = "token_usage.txt"):
         
         # Determine model type (assume based on role)
         if "Mapper" in role:
-            model_type = "haiku"
-        elif "Linker" in role:
-            model_type = "sonnet"
-        elif "Sentinel" in role:
-            model_type = "opus"
+            model_type = "gpt-oss"
+        elif "Linker" in role or "linker" in role:
+            model_type = "nova-pro"
+        elif "Sentinel" in role or "sentinel" in role:
+            model_type = "deepseek-r1"
         else:
-            model_type = "sonnet"  # default
+            model_type = "nova-pro"  # default
         
         pricing = PRICING[model_type]
         input_cost = (input_tokens / 1_000_000) * pricing["input"]
@@ -155,27 +155,27 @@ def estimate_analysis_cost(num_nodes: int) -> dict:
     
     # Calculate costs with updated pricing
     mapper_cost = (
-        (mapper_calls * mapper_input_avg / 1_000_000) * PRICING["haiku"]["input"] +
-        (mapper_calls * mapper_output_avg / 1_000_000) * PRICING["haiku"]["output"]
+        (mapper_calls * mapper_input_avg / 1_000_000) * PRICING["gpt-oss"]["input"] +
+        (mapper_calls * mapper_output_avg / 1_000_000) * PRICING["gpt-oss"]["output"]
     )
     
     linker_cost = (
-        (linker_calls * linker_input_avg / 1_000_000) * PRICING["sonnet"]["input"] +
-        (linker_calls * linker_output_avg / 1_000_000) * PRICING["sonnet"]["output"]
+        (linker_calls * linker_input_avg / 1_000_000) * PRICING["nova-pro"]["input"] +
+        (linker_calls * linker_output_avg / 1_000_000) * PRICING["nova-pro"]["output"]
     )
     
     sentinel_cost = (
-        (sentinel_calls * sentinel_input_avg / 1_000_000) * PRICING["opus"]["input"] +
-        (sentinel_calls * sentinel_output_avg / 1_000_000) * PRICING["opus"]["output"]
+        (sentinel_calls * sentinel_input_avg / 1_000_000) * PRICING["deepseek-r1"]["input"] +
+        (sentinel_calls * sentinel_output_avg / 1_000_000) * PRICING["deepseek-r1"]["output"]
     )
     
     total_cost = mapper_cost + linker_cost + sentinel_cost
     
     print(f"\n💡 ESTIMATED COST FOR {num_nodes} NODES")
-    print(f"   Mapper (Haiku):    ${mapper_cost:.4f}")
-    print(f"   Linker (Sonnet):   ${linker_cost:.4f}")
-    print(f"   Sentinel (Opus):   ${sentinel_cost:.4f}")
-    print(f"   💰 TOTAL ESTIMATE: ${total_cost:.4f}\n")
+    print(f"   Mapper (GPT-OSS):      ${mapper_cost:.4f}")
+    print(f"   Linker (Nova Pro):     ${linker_cost:.4f}")
+    print(f"   Sentinel (DeepSeek):   ${sentinel_cost:.4f}")
+    print(f"   💰 TOTAL ESTIMATE:     ${total_cost:.4f}\n")
     
     return {
         "num_nodes": num_nodes,
