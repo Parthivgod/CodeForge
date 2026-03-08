@@ -1,8 +1,10 @@
 import React from 'react';
 import MetricsCards from './MetricsCards';
 import GraphExplorer from './GraphExplorer/GraphExplorer';
+import NodeDetailPanel from './GraphExplorer/NodeDetailPanel';
 import ActionBar from './ActionBar';
 import { CheckCircle2 } from 'lucide-react';
+import { downloadReport } from '../utils/reportGenerator';
 
 const ResultsDashboard = ({ results, jobId, onReset }) => {
     const {
@@ -46,8 +48,7 @@ const ResultsDashboard = ({ results, jobId, onReset }) => {
                     </span>
                     <ActionBar
                         onReset={onReset}
-                        onDownload={() => alert('Downloading graph data...')}
-                        onDeploy={() => alert('Deploying to Cloud...')}
+                        onDownload={() => downloadReport(nodes, graphEdges, `analysis-report-${jobId?.substring(0, 8)}.md`)}
                     />
                 </div>
             </div>
@@ -65,12 +66,22 @@ const ResultsDashboard = ({ results, jobId, onReset }) => {
                 </p>
             </div>
 
-            {/* Graph explorer fills remaining space */}
-            <div className="flex-1 min-h-0">
-                <GraphExplorer
-                    nodes={nodes}
-                    edges={graphEdges}
-                />
+            {/* Main content: Graph + Node Details side by side */}
+            <div className="flex-1 min-h-0 flex">
+                {/* Left: Graph explorer */}
+                <div className="flex-1 min-w-0">
+                    <GraphExplorer
+                        nodes={nodes}
+                        edges={graphEdges}
+                    />
+                </div>
+
+                {/* Right: Node Details Panel only */}
+                <div className="w-80 flex-shrink-0 border-l border-slate-800 bg-slate-900/50 overflow-y-auto" style={{ height: 'calc(100vh + 50px)' }}>
+                    <div className="p-5 h-full">
+                        <NodeDetailPanel />
+                    </div>
+                </div>
             </div>
         </div>
     );

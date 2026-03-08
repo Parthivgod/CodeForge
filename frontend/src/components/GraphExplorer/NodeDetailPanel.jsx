@@ -1,246 +1,176 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+﻿import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import useGraphStore from '../../store/useGraphStore';
-import {
-    Package,
-    FileCode,
-    Zap,
-    CheckCircle2,
-    X,
-    AlertTriangle,
-    Shield,
-    Terminal,
-    Box,
-    Globe,
-    Database,
-    Cpu
-} from 'lucide-react';
-
-const TYPE_ICONS = {
-    function: <Cpu className="w-4 h-4" />,
-    api_call: <Globe className="w-4 h-4" />,
-    class: <Box className="w-4 h-4" />,
-    module: <Package className="w-4 h-4" />,
-    file: <FileCode className="w-4 h-4" />,
-    database: <Database className="w-4 h-4" />,
-    external: <Globe className="w-4 h-4" />,
-};
+import { Database, X, MapPin, Phone, Shield, AlertTriangle, MousePointerClick } from 'lucide-react';
 
 const NodeDetailPanel = () => {
     const selectedNodeId = useGraphStore((s) => s.selectedNodeId);
     const rawNodes = useGraphStore((s) => s.rawNodes);
+    const rawEdges = useGraphStore((s) => s.rawEdges);
     const clearSelection = useGraphStore((s) => s.clearSelection);
 
-    const selectedNode = selectedNodeId
-        ? rawNodes.find((n) => n.id === selectedNodeId) || null
-        : null;
+    const selectedNode = selectedNodeId ? rawNodes.find((n) => n.id === selectedNodeId) || null : null;
 
     if (!selectedNode) {
         return (
-            <div className="h-full flex flex-col items-center justify-center text-center py-10 opacity-50">
-                <Package className="w-10 h-10 text-slate-600 mb-3" />
-                <h3 className="text-sm font-bold text-slate-300">Node Details</h3>
-                <p className="text-xs text-slate-500 mt-1">
-                    Select a node in the graph to explore its properties
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-6 min-h-full">
+                <MousePointerClick className="w-16 h-16 text-slate-600 mb-4 animate-pulse" />
+                <h3 className="text-lg font-bold text-slate-300 mb-2">Select a Node</h3>
+                <p className="text-sm text-slate-500 mb-4">
+                    Click on any node in the graph to view its details
                 </p>
+                <div className="text-xs text-slate-600 space-y-2 mt-4">
+                    <p>• Single click to select</p>
+                    <p>• Double click to expand/collapse files</p>
+                </div>
             </div>
         );
     }
 
     const risk = selectedNode.risk_level || selectedNode.risk || 'low';
     const type = selectedNode.classification || selectedNode.type || 'function';
+    const language = selectedNode.language || 'python';
+
+    const outgoingCalls = rawEdges.filter(e => e.source === selectedNode.id);
+
+    const riskColors = {
+        critical: 'text-red-500 bg-red-500/10 border-red-500/30',
+        high: 'text-orange-500 bg-orange-500/10 border-orange-500/30',
+        moderate: 'text-yellow-500 bg-yellow-500/10 border-yellow-500/30',
+        medium: 'text-yellow-500 bg-yellow-500/10 border-yellow-500/30',
+        low: 'text-green-500 bg-green-500/10 border-green-500/30',
+        none: 'text-slate-500 bg-slate-500/10 border-slate-500/30'
+    };
 
     return (
         <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             key={selectedNode.id}
-            className="space-y-3 min-h-full"
+            className="flex-1 flex flex-col min-h-full pb-6"
         >
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 min-w-0">
-                    <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400">
-                        {TYPE_ICONS[type] || <Terminal className="w-5 h-5" />}
-                    </div>
-                    <div className="min-w-0">
-                        <h3 className="text-lg font-bold text-white truncate">{selectedNode.name}</h3>
-                        <p className="text-[10px] font-mono text-slate-500 truncate">{type.toUpperCase()}</p>
-                    </div>
+            <div className="flex items-center justify-between p-4 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                    <Database className="w-5 h-5 text-blue-400" />
+                    <h3 className="text-lg font-bold text-white">{selectedNode.name}</h3>
                 </div>
-                <button
-                    onClick={clearSelection}
-                    className="p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-slate-300 transition-colors flex-shrink-0"
-                >
-                    <X className="w-4 h-4" />
+                <button onClick={clearSelection} className="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200">
+                    <X className="w-5 h-5" />
                 </button>
             </div>
 
-            {/* Classification Quick Badge (New Prominent View) */}
-            <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <div className="text-blue-400">
-                        {TYPE_ICONS[type] || <Terminal className="w-4 h-4" />}
-                    </div>
-                    <span className="text-xs font-bold text-slate-200 uppercase tracking-wide">
-                        {type.replace('_', ' ')}
-                    </span>
-                </div>
-                <div className={clsx(
-                    "px-2 py-0.5 rounded text-[9px] font-black uppercase border",
-                    risk === 'critical' ? "bg-red-500/20 text-red-500 border-red-500/30" :
-                        risk === 'high' ? "bg-orange-500/20 text-orange-500 border-orange-500/30" :
-                            risk === 'medium' || risk === 'moderate' ? "bg-yellow-500/20 text-yellow-500 border-yellow-500/30" :
-                                "bg-green-500/20 text-green-500 border-green-500/30"
-                )}>
-                    {risk} Risk
-                </div>
-            </div>
+            <div className="p-4 space-y-4">
+                <div className="text-xs text-slate-500 font-mono">{selectedNode.id}</div>
 
-            <p className="text-[10px] font-mono text-slate-600 break-all">{selectedNode.id}</p>
-
-            {/* Summary */}
-            {selectedNode.node_summary && (
-                <div className="text-sm text-slate-300 italic border-l-2 border-slate-700 pl-3 py-1">
-                    {selectedNode.node_summary}
-                </div>
-            )}
-
-            {/* Impact Analysis */}
-            {selectedNode.impact_analysis && (
-                <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-3">
-                    <h4 className="text-[10px] font-bold text-slate-500 uppercase mb-2 tracking-wider flex items-center gap-1">
-                        <AlertTriangle className="w-3 h-3" /> Impact Analysis
-                    </h4>
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                        <div className="bg-slate-800/50 rounded p-1">
-                            <div className="text-lg font-bold text-white">
-                                {selectedNode.impact_analysis.blast_radius_score}/10
-                            </div>
-                            <div className="text-[9px] text-slate-400 uppercase">Blast Radius</div>
-                        </div>
-                        <div className="bg-slate-800/50 rounded p-1">
-                            <div className="text-lg font-bold text-white">
-                                {selectedNode.impact_analysis.critical_path_likelihood}/10
-                            </div>
-                            <div className="text-[9px] text-slate-400 uppercase">Critical Path</div>
-                        </div>
-                        <div className="bg-slate-800/50 rounded p-1">
-                            <div className="text-sm font-bold text-white mt-1 capitalize">
-                                {selectedNode.impact_analysis.change_sensitivity}
-                            </div>
-                            <div className="text-[9px] text-slate-400 uppercase mt-1">Sensitivity</div>
-                        </div>
+                <div>
+                    <div className="text-xs text-slate-500 uppercase mb-2">Type</div>
+                    <div className="inline-block px-3 py-1 bg-blue-500/20 text-blue-400 rounded-lg text-sm font-semibold uppercase border border-blue-500/30">
+                        {type}
                     </div>
                 </div>
-            )}
 
-            {/* Risk Factors */}
-            <div
-                className={clsx(
-                    'p-3 rounded-lg border',
-                    risk === 'high' || risk === 'critical'
-                        ? 'bg-red-500/5 border-red-500/20'
-                        : risk === 'medium' || risk === 'moderate'
-                            ? 'bg-yellow-500/5 border-yellow-500/20'
-                            : 'bg-green-500/5 border-green-500/20'
-                )}
-            >
-                <h4
-                    className={clsx(
-                        'text-xs font-bold uppercase mb-3 flex items-center gap-1',
-                        risk === 'high' || risk === 'critical'
-                            ? 'text-red-400'
-                            : risk === 'medium' || risk === 'moderate'
-                                ? 'text-yellow-400'
-                                : 'text-green-400'
-                    )}
-                >
-                    <Shield className="w-4 h-4" /> Risk Analysis
-                </h4>
+                <div>
+                    <div className="text-xs text-slate-500 uppercase mb-2">Language</div>
+                    <div className="text-white font-mono">{language}</div>
+                </div>
 
-                {selectedNode.risk_analysis?.risk_factors ? (
-                    <div className="space-y-3">
-                        {Object.entries(selectedNode.risk_analysis.risk_factors)
-                            .filter(([_, data]) => data.level && data.level !== 'none')
-                            .map(([riskName, data], idx) => (
-                                <div
-                                    key={idx}
-                                    className="bg-slate-900/50 rounded p-2 text-xs border border-slate-700/50"
-                                >
-                                    <div className="flex items-center justify-between mb-1">
-                                        <span className="font-mono text-slate-300 capitalize">
-                                            {riskName.replace(/_/g, ' ')}
-                                        </span>
-                                        <span
-                                            className={clsx(
-                                                'px-1.5 py-0.5 rounded text-[9px] uppercase font-bold',
-                                                data.level === 'critical'
-                                                    ? 'bg-red-500 text-white'
-                                                    : data.level === 'high'
-                                                        ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                                                        : data.level === 'moderate'
-                                                            ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                                                            : 'bg-slate-700 text-slate-300'
-                                            )}
-                                        >
-                                            {data.level}
-                                        </span>
-                                    </div>
-                                    <div className="text-[10px] text-slate-400 italic font-sans leading-relaxed">{data.reason}</div>
-                                </div>
-                            ))}
+                <div>
+                    <div className="flex items-center gap-2 mb-2">
+                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                        <div className="text-xs text-slate-500 uppercase">Risk: {risk.toUpperCase()}</div>
                     </div>
-                ) : (
-                    <p className="text-[11px] text-slate-400 italic">No specific risk factors detected.</p>
-                )}
-            </div>
+                    <div className={clsx('px-3 py-2 rounded-lg border text-sm', riskColors[risk])}>
+                        {selectedNode.node_summary || 'No specific risk identified'}
+                    </div>
+                </div>
 
-            {/* Architecture Role */}
-            <div className="flex flex-col text-xs px-3 py-2 bg-slate-800/50 border border-slate-700 rounded-lg">
-                <span className="text-slate-500 uppercase text-[9px] font-bold mb-1 tracking-wider">Architectural Role</span>
-                <span className="font-bold text-slate-200 uppercase">
-                    {selectedNode.architectural_role || 'General Component'}
-                </span>
-            </div>
-
-            {/* Sensitive Behaviors */}
-            {selectedNode.sensitive_behaviors &&
-                Object.keys(selectedNode.sensitive_behaviors).some(
-                    (k) => selectedNode.sensitive_behaviors[k]
-                ) && (
+                {selectedNode.risk_analysis?.risk_factors && (
                     <div>
-                        <h4 className="text-[10px] font-bold text-slate-500 uppercase mb-2 tracking-wider flex items-center gap-1">
-                            <Zap className="w-3 h-3 text-amber-500" /> Sensitive Behaviors
-                        </h4>
-                        <div className="flex flex-wrap gap-2">
-                            {Object.entries(selectedNode.sensitive_behaviors).map(([key, val]) =>
-                                val ? (
-                                    <span
-                                        key={key}
-                                        className="px-2 py-1 bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[10px] uppercase font-mono rounded"
-                                    >
-                                        {key.replace(/_/g, ' ')}
-                                    </span>
-                                ) : null
-                            )}
+                        <div className="flex items-center gap-2 mb-2">
+                            <Shield className="w-3 h-3 text-slate-500" />
+                            <div className="text-xs text-slate-500 uppercase">Risk Factors</div>
+                        </div>
+                        <div className="space-y-2">
+                            {Object.entries(selectedNode.risk_analysis.risk_factors)
+                                .filter(([_, data]) => data.level && data.level !== 'none')
+                                .slice(0, 5)
+                                .map(([riskName, data], idx) => {
+                                    const factorRisk = riskColors[data.level] || riskColors.low;
+                                    return (
+                                        <div key={idx} className="bg-slate-800/50 rounded-lg p-2 border border-slate-700/50">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className="text-xs font-semibold text-slate-300 capitalize">
+                                                    {riskName.replace(/_/g, ' ')}
+                                                </span>
+                                                <span className={clsx('px-2 py-0.5 rounded text-[10px] uppercase font-bold border', factorRisk)}>
+                                                    {data.level}
+                                                </span>
+                                            </div>
+                                            <p className="text-[11px] text-slate-400 leading-relaxed">{data.reason}</p>
+                                        </div>
+                                    );
+                                })}
                         </div>
                     </div>
                 )}
 
-            {/* File location */}
-            {selectedNode.file && (
-                <div className="pt-2 border-t border-slate-800">
-                    <h4 className="text-[10px] font-bold text-slate-500 uppercase mb-2 flex items-center gap-1 tracking-wider">
-                        <FileCode className="w-3 h-3" /> Location
-                    </h4>
-                    <div className="text-[11px] font-mono text-slate-400 bg-black/40 p-2 rounded break-all border border-slate-800">
-                        {selectedNode.file}
-                        {selectedNode.line_start ? `:${selectedNode.line_start}` : ''}
+                {selectedNode.impact_analysis && (
+                    <div>
+                        <div className="flex items-center gap-2 mb-2">
+                            <AlertTriangle className="w-3 h-3 text-amber-500" />
+                            <div className="text-xs text-slate-500 uppercase">Impact Analysis</div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                            <div className="bg-slate-800/50 rounded-lg p-2 text-center border border-slate-700/50">
+                                <div className="text-lg font-bold text-white">{selectedNode.impact_analysis.blast_radius_score}</div>
+                                <div className="text-[10px] text-slate-400 uppercase">Blast Radius</div>
+                            </div>
+                            <div className="bg-slate-800/50 rounded-lg p-2 text-center border border-slate-700/50">
+                                <div className="text-lg font-bold text-white">{selectedNode.impact_analysis.critical_path_likelihood}</div>
+                                <div className="text-[10px] text-slate-400 uppercase">Critical Path</div>
+                            </div>
+                            <div className="bg-slate-800/50 rounded-lg p-2 text-center border border-slate-700/50">
+                                <div className="text-sm font-bold text-white capitalize">{selectedNode.impact_analysis.change_sensitivity}</div>
+                                <div className="text-[10px] text-slate-400 uppercase">Sensitivity</div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
+
+                {selectedNode.file && (
+                    <div>
+                        <div className="flex items-center gap-2 mb-2">
+                            <MapPin className="w-3 h-3 text-slate-500" />
+                            <div className="text-xs text-slate-500 uppercase">Location</div>
+                        </div>
+                        <div className="bg-slate-950/50 p-3 rounded border border-slate-800">
+                            <p className="text-xs font-mono text-slate-300 break-all">
+                                {selectedNode.file}
+                                {selectedNode.line_start && <span className="text-blue-400">:{selectedNode.line_start}</span>}
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {outgoingCalls.length > 0 && (
+                    <div>
+                        <div className="flex items-center gap-2 mb-2">
+                            <Phone className="w-3 h-3 text-slate-500" />
+                            <div className="text-xs text-slate-500 uppercase">Calls ({outgoingCalls.length})</div>
+                        </div>
+                        <div className="space-y-1">
+                            {outgoingCalls.slice(0, 10).map((edge, idx) => {
+                                const targetNode = rawNodes.find(n => n.id === edge.target);
+                                return (
+                                    <div key={idx} className="text-xs font-mono text-slate-400 hover:text-slate-200 cursor-pointer px-2 py-1 hover:bg-slate-800/50 rounded">
+                                        {targetNode?.name || edge.target}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+            </div>
         </motion.div>
     );
 };

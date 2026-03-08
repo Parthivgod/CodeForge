@@ -102,6 +102,17 @@ const useGraphStore = create((set, get) => ({
 
     collapseAll: () => set({ expandedFiles: new Set() }),
 
+    expandAll: () =>
+        set((state) => {
+            const allFiles = new Set();
+            state.rawNodes.forEach((n) => {
+                if (n.file) {
+                    allFiles.add(n.file);
+                }
+            });
+            return { expandedFiles: allFiles };
+        }),
+
     // --- Dynamic expansion: merge new neighbors ---
     mergeNeighbors: (newNodes, newEdges) =>
         set((state) => {

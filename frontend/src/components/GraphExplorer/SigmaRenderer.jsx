@@ -14,11 +14,11 @@ const PERFORMANCE_THRESHOLDS = {
 /* ─── Dagre layout helper ─── */
 function applyDagreLayout(graph) {
     const g = new dagre.graphlib.Graph();
-    g.setGraph({ rankdir: 'TB', nodesep: 60, ranksep: 80, edgesep: 20 });
+    g.setGraph({ rankdir: 'TB', nodesep: 500, ranksep: 600, edgesep: 300 });
     g.setDefaultEdgeLabel(() => ({}));
 
     graph.forEachNode((id, attrs) => {
-        g.setNode(id, { width: 120, height: 50 });
+        g.setNode(id, { width: 180, height: 70 });
     });
     graph.forEachEdge((key, attrs, source, target) => {
         g.setEdge(source, target);
@@ -101,6 +101,7 @@ const SigmaRenderer = ({ nodes, edges }) => {
     const expandedFiles = useGraphStore((s) => s.expandedFiles);
     const toggleFileExpansion = useGraphStore((s) => s.toggleFileExpansion);
     const collapseAll = useGraphStore((s) => s.collapseAll);
+    const expandAll = useGraphStore((s) => s.expandAll);
 
     const selectedRef = useRef(null);
     const hoveredRef = useRef(null);
@@ -410,41 +411,49 @@ const SigmaRenderer = ({ nodes, edges }) => {
                 style={{ minHeight: '500px' }}
             />
 
-            {/* Bottom controls */}
-            <div className="absolute bottom-4 left-4 z-10 flex gap-2">
-                {hasExpanded && (
+            {/* Top controls - File status and expand/collapse */}
+            <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+                <div className="bg-slate-900/80 backdrop-blur-sm px-3 py-1.5 rounded-lg flex items-center gap-2 border border-slate-800">
+                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                    <span className="text-xs font-mono text-slate-300">
+                        {hasExpanded ? 'File Expanded' : 'File View'} • Double-click to {hasExpanded ? 'collapse' : 'expand'}
+                    </span>
+                </div>
+                
+                <div className="flex gap-2">
+                    {hasExpanded ? (
+                        <button
+                            onClick={() => { collapseAll(); selectNode(null); }}
+                            className="px-3 py-1.5 bg-blue-600/80 hover:bg-blue-500 text-white text-xs font-mono rounded-lg border border-blue-500 backdrop-blur-sm transition-colors"
+                        >
+                            ← Collapse All
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => { expandAll(); }}
+                            className="px-3 py-1.5 bg-green-600/80 hover:bg-green-500 text-white text-xs font-mono rounded-lg border border-green-500 backdrop-blur-sm transition-colors"
+                        >
+                            → Expand All
+                        </button>
+                    )}
                     <button
-                        onClick={() => { collapseAll(); selectNode(null); }}
-                        className="px-3 py-1.5 bg-blue-600/80 hover:bg-blue-500 text-white text-xs font-mono rounded-lg border border-blue-500 backdrop-blur-sm transition-colors"
+                        onClick={handleRelayout}
+                        className="px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-mono rounded-lg border border-slate-700 backdrop-blur-sm transition-colors"
                     >
-                        ← Collapse All
+                        ⟳ Re-layout
                     </button>
-                )}
-                <button
-                    onClick={handleRelayout}
-                    className="px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-mono rounded-lg border border-slate-700 backdrop-blur-sm transition-colors"
-                >
-                    ⟳ Re-layout
-                </button>
-                <button
-                    onClick={() => sigmaRef.current?.getCamera()?.animatedReset()}
-                    className="px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-mono rounded-lg border border-slate-700 backdrop-blur-sm transition-colors"
-                >
-                    ⊞ Fit View
-                </button>
-            </div>
-
-            {/* Status indicator */}
-            <div className="absolute top-4 left-4 z-10 bg-slate-900/80 backdrop-blur-sm px-3 py-1.5 rounded-lg flex items-center gap-2 border border-slate-800">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-xs font-mono text-slate-300">
-                    {hasExpanded ? 'File Expanded' : 'File View'} • Double-click to {hasExpanded ? 'collapse' : 'expand'}
-                </span>
+                    <button
+                        onClick={() => sigmaRef.current?.getCamera()?.animatedReset()}
+                        className="px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-mono rounded-lg border border-slate-700 backdrop-blur-sm transition-colors"
+                    >
+                        ⊞ Fit View
+                    </button>
+                </div>
             </div>
 
             {/* Performance indicator for large graphs */}
             {isLargeGraph && (
-                <div className="absolute top-14 left-4 z-10 bg-blue-900/80 backdrop-blur-sm px-3 py-1.5 rounded-lg flex items-center gap-2 border border-blue-700">
+                <div className="absolute top-24 left-4 z-10 bg-blue-900/80 backdrop-blur-sm px-3 py-1.5 rounded-lg flex items-center gap-2 border border-blue-700">
                     <svg className="w-3 h-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
