@@ -159,6 +159,10 @@ def get_report(job_id: str):
         return {"content": "Not ready."}
     return {"content": JOB_RESULTS[job_id]["report"]}
 
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
+
 @traceable(project_name="CodeForge")
 def run_pipeline(job_id: str, zip_path: str):
     try:
