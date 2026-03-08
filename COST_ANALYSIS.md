@@ -4,29 +4,29 @@
 
 | Model | Role | Input Cost | Output Cost |
 |-------|------|------------|-------------|
-| Claude 3 Haiku | Mapper | $0.15 | $0.60 |
-| Claude 3 Sonnet | Linker | $0.80 | $3.20 |
-| Claude 3 Opus | Sentinel | $1.35 | $5.40 |
+| GPT-OSS-120B | Mapper | $0.15 | $0.60 |
+| Amazon Nova Pro | Linker | $0.80 | $3.20 |
+| DeepSeek R1 | Sentinel | $1.35 | $5.40 |
 
 ## Cost Breakdown by Role
 
 ### Mapper (Fast Classification)
 - **Purpose**: Quick triage and tier assignment
-- **Model**: Claude 3 Haiku (fastest, cheapest)
+- **Model**: GPT-OSS-120B (fastest, cheapest)
 - **Batch Size**: 30 nodes
 - **Average Tokens**: ~2,000 input, ~500 output per batch
 - **Cost per 1K nodes**: ~$0.02
 
 ### Linker (Relation Extraction)
 - **Purpose**: Semantic relationship discovery
-- **Model**: Claude 3 Sonnet (balanced)
+- **Model**: Amazon Nova Pro (balanced)
 - **Batch Size**: 8 nodes (reduced to avoid truncation)
 - **Average Tokens**: ~3,000 input, ~800 output per batch
 - **Cost per 1K nodes**: ~$0.16
 
 ### Sentinel (Deep Risk Analysis)
 - **Purpose**: Security and stability reasoning
-- **Model**: Claude 3 Opus (most capable)
+- **Model**: DeepSeek R1 (most capable for reasoning)
 - **Selective**: Only analyzes Tier 2-3 nodes (~10% of codebase)
 - **Average Tokens**: ~4,000 input, ~1,200 output per node
 - **Cost per 1K nodes**: ~$1.19
