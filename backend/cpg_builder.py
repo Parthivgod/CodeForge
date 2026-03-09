@@ -45,11 +45,11 @@ import tree_sitter_java
 import tree_sitter_go
 
 TS_LANGUAGES = {
-    'python': tree_sitter.Language(tree_sitter_python.language(), "python"),
-    'javascript': tree_sitter.Language(tree_sitter_javascript.language(), "javascript"),
-    'typescript': tree_sitter.Language(tree_sitter_typescript.language_typescript(), "typescript"),
-    'java': tree_sitter.Language(tree_sitter_java.language(), "java"),
-    'go': tree_sitter.Language(tree_sitter_go.language(), "go")
+    'python': tree_sitter.Language(tree_sitter_python.language()),
+    'javascript': tree_sitter.Language(tree_sitter_javascript.language()),
+    'typescript': tree_sitter.Language(tree_sitter_typescript.language_typescript()),
+    'java': tree_sitter.Language(tree_sitter_java.language()),
+    'go': tree_sitter.Language(tree_sitter_go.language())
 }
 
 # ─── Universal Parser ───

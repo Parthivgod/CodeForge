@@ -14,7 +14,14 @@ CodeForge analyzes your codebase and provides intelligent recommendations for de
 
 ## Quick Start
 
-### Local Development
+### 1. Start Backend
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### 2. Start Frontend
 ```bash
 cd frontend
 npm install
@@ -22,7 +29,8 @@ npm run dev
 ```
 
 - Frontend: http://localhost:5173
-- Backend: https://codeforge-6nhc.onrender.com (already deployed)
+- Backend: http://localhost:8000
+- API Docs: http://localhost:8000/docs
 
 ### Deploy Frontend
 See [DEPLOY.md](./DEPLOY.md) for deployment options (Render, Vercel, Netlify).
