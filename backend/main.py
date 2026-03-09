@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, BackgroundTasks
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import uuid
 import os
 import shutil
@@ -162,6 +163,11 @@ def get_report(job_id: str):
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
+
+# Serve frontend static files (for Railway deployment)
+frontend_dist_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+if os.path.exists(frontend_dist_path):
+    app.mount("/", StaticFiles(directory=frontend_dist_path, html=True), name="frontend")
 
 if __name__ == "__main__":
     import uvicorn

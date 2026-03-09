@@ -32,8 +32,13 @@ npm run dev
 - Backend: http://localhost:8000
 - API Docs: http://localhost:8000/docs
 
-### Deploy Frontend
-See [DEPLOY.md](./DEPLOY.md) for deployment options (Render, Vercel, Netlify).
+### Deploy to Railway
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/codeforge)
+
+See [RAILWAY_DEPLOY.md](./RAILWAY_DEPLOY.md) for detailed deployment instructions.
+
+### Other Deployment Options
+See [DEPLOY.md](./DEPLOY.md) for other deployment options (Render, Vercel, Netlify).
 
 ## Tech Stack
 
