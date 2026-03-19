@@ -33,6 +33,11 @@ temp/
 *.tmp
 *.log
 
+
 # OS
 .DS_Store
 Thumbs.db
+
+# Large files
+*.pt
+*.json
