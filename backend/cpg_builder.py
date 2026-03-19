@@ -45,11 +45,11 @@ import tree_sitter_java
 import tree_sitter_go
 
 TS_LANGUAGES = {
-    'python': tree_sitter.Language(tree_sitter_python.language()),
-    'javascript': tree_sitter.Language(tree_sitter_javascript.language()),
-    'typescript': tree_sitter.Language(tree_sitter_typescript.language_typescript()),
-    'java': tree_sitter.Language(tree_sitter_java.language()),
-    'go': tree_sitter.Language(tree_sitter_go.language())
+    "python": tree_sitter.Language(tree_sitter_python.language(), "python"),
+    "javascript": tree_sitter.Language(tree_sitter_javascript.language(), "javascript"),
+    "typescript": tree_sitter.Language(tree_sitter_typescript.language_typescript(), "typescript"),
+    "java": tree_sitter.Language(tree_sitter_java.language(), "java"),
+    "go": tree_sitter.Language(tree_sitter_go.language(), "go"),
 }
 
 # ─── Universal Parser ───
@@ -257,7 +257,9 @@ def parse_file(filepath: str, **kwargs) -> Dict[str, Any]:
     try:
         with open(filepath, 'rb') as f: source = f.read()
         visitor = UniversalTreeSitterParser(filepath, language_name, root_dir=kwargs.get('root_dir', ''))
-        visitor.walk(tree_sitter.Parser(TS_LANGUAGES[language_name]).parse(source).root_node, source)
+        parser = tree_sitter.Parser()
+        parser.set_language(TS_LANGUAGES[language_name])
+        visitor.walk(parser.parse(source).root_node, source)
         return {"file": filepath, "language": language_name, "nodes": visitor.nodes, "imports": visitor.imports, "symbols": visitor.local_symbols}
     except Exception as e:
         print(f"Error parsing {filepath}: {e}")

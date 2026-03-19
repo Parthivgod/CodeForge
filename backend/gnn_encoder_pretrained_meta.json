@@ -1,0 +1,21 @@
+{
+  "saved": "2026-03-15T15:57:31.832364",
+  "in_features": 77,
+  "hidden_dim": 256,
+  "embed_dim": 128,
+  "best_val_loss": 1.0970595359802247,
+  "epochs_run": 30,
+  "total_time_s": 284.7,
+  "quality": {
+    "connected_sim": 0.8172,
+    "unconnected_sim": 0.0349,
+    "gap": 0.7823
+  },
+  "hyperparams": {
+    "lr": 0.005,
+    "weight_decay": 0.0001,
+    "dropout": 0.3,
+    "train_split": 0.85,
+    "early_stop": 50
+  }
+}

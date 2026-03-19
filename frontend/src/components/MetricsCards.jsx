@@ -1,35 +1,65 @@
-
 import { motion } from 'framer-motion';
-import { Activity, Code, Layers, Zap } from 'lucide-react';
+import { Activity, Code, Layers, Zap, GitFork } from 'lucide-react';
 
-const MetricCard = ({ icon: Icon, label, value, color, delay }) => (
+const METRICS = [
+    { icon: Layers,   label: 'Nodes Extracted',  key: 'nodes',      accentHex: '#3b82f6' },
+    { icon: Code,     label: 'Total LOC',         key: 'loc',        accentHex: '#eab308' },
+    { icon: Zap,      label: 'Relations',         key: 'edges',      accentHex: '#10b981' },
+    { icon: Activity, label: 'Confidence',        key: 'confidence', accentHex: '#8b5cf6' },
+    { icon: GitFork,  label: 'Microservices',     key: 'services',   accentHex: '#f97316' },
+];
+
+const MetricCard = ({ icon: Icon, label, value, accentHex, delay }) => (
     <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay }}
-        className="glass p-4 rounded-xl flex items-center justify-between border-l-4"
-        style={{ borderLeftColor: color }}
+        transition={{ duration: 0.4, delay }}
+        className="flex items-center gap-3 py-3 px-4 rounded-xl"
+        style={{
+            background: 'rgba(15,23,42,0.6)',
+            border: `1px solid ${accentHex}22`,
+        }}
+        role="group"
+        aria-label={`${label}: ${value ?? 'N/A'}`}
     >
-        <div>
-            <p className="text-slate-400 text-sm font-medium">{label}</p>
-            <h4 className="text-2xl font-bold mt-1 text-white">{value}</h4>
+        <div
+            className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center"
+            style={{ background: accentHex + '18' }}
+            aria-hidden="true"
+        >
+            <Icon className="w-4 h-4" style={{ color: accentHex }} />
         </div>
-        <div className="p-3 bg-slate-800/50 rounded-lg">
-            <Icon className="w-5 h-5" style={{ color }} />
+        <div className="min-w-0">
+            <p className="text-xs text-slate-500 leading-none mb-1 truncate">{label}</p>
+            <p
+                className="text-lg font-bold tabular-nums leading-none"
+                style={{ color: accentHex }}
+            >
+                {value ?? 'N/A'}
+            </p>
         </div>
     </motion.div>
 );
 
 const MetricsCards = ({ stats }) => {
-    // Default/Mock stats if empty
-    const s = stats || { nodes: 0, loc: "0", edges: 0, confidence: "0%" };
+    const s = stats || { nodes: 0, loc: '0', edges: 0, confidence: '0%', services: undefined };
 
     return (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <MetricCard icon={Layers} label="Nodes Extracted" value={s.nodes} color="#3b82f6" delay={0.1} />
-            <MetricCard icon={Code} label="Total LOC" value={s.loc} color="#eab308" delay={0.2} />
-            <MetricCard icon={Zap} label="Relations (Edges)" value={s.edges} color="#10b981" delay={0.3} />
-            <MetricCard icon={Activity} label="Confidence" value={s.confidence} color="#8b5cf6" delay={0.4} />
+        <div
+            className="grid grid-cols-2 md:grid-cols-5 gap-3"
+            role="region"
+            aria-label="Analysis metrics"
+        >
+            {METRICS.map((m, i) => (
+                <MetricCard
+                    key={m.key}
+                    icon={m.icon}
+                    label={m.label}
+                    value={s[m.key]}
+                    accentHex={m.accentHex}
+                    delay={i * 0.07}
+                />
+            ))}
         </div>
     );
 };

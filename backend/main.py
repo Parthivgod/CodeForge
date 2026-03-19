@@ -11,6 +11,16 @@ from cpg_builder import build_cpg
 from orchestrator import discover_relations_orchestrated
 from risk_ast import build_risk_ast
 from feature_engineering import generate_embeddings
+from clustering import cluster_nodes, label_clusters_with_llm
+
+# GNN import with graceful fallback
+try:
+    from gnn_model import generate_gnn_embeddings
+    GNN_AVAILABLE = True
+    print("[Startup] GNN model loaded (PyTorch available).")
+except ImportError:
+    GNN_AVAILABLE = False
+    print("[Startup] PyTorch not found — GNN disabled, using TF-IDF embeddings.")
 from langsmith import traceable
 
 app = FastAPI(title="CodeForge API")
@@ -69,8 +79,9 @@ async def analyze_monolith(
             content={"error": "System Error: Git is not installed or not found in PATH on the server. Please install Git and restart the backend."}
         )
 
+    import tempfile as _tempfile
     job_id = str(uuid.uuid4())
-    upload_dir = f"temp/{job_id}"
+    upload_dir = os.path.join(_tempfile.gettempdir(), "codeforge", job_id)
     os.makedirs(upload_dir, exist_ok=True)
     
     if file:
@@ -173,7 +184,7 @@ if __name__ == "__main__":
     import uvicorn
     import os
     port = int(os.environ.get("PORT", 10000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=port, reload=True, reload_excludes=["temp/*"])
 
 @traceable(project_name="CodeForge")
 def run_pipeline(job_id: str, zip_path: str):
@@ -237,13 +248,18 @@ def run_pipeline(job_id: str, zip_path: str):
         update_status(job_id, 4, total_steps, "Validating Relationships...")
         all_edges = validate_and_enhance_edges(all_edges, nodes)
         
-        # 4. Generate Embeddings (Optional - for future ML features)
-        update_status(job_id, 5, total_steps, "Generating Node Embeddings...")
+        # 4. Generate Embeddings — GNN if available, TF-IDF fallback
+        update_status(job_id, 5, total_steps, "Generating Node Embeddings (GNN)...")
         try:
-            nodes = generate_embeddings(nodes)
-            print(f"Generated embeddings for {len(nodes)} nodes")
+            if GNN_AVAILABLE:
+                nodes = generate_gnn_embeddings(nodes, all_edges)
+                print(f"[GNN] Generated GNN embeddings for {len(nodes)} nodes")
+            else:
+                nodes = generate_embeddings(nodes)
+                print(f"Generated TF-IDF embeddings for {len(nodes)} nodes")
         except Exception as e:
             print(f"Warning: Embedding generation failed: {e}")
+            nodes = generate_embeddings(nodes)
         
         # 5. Graph Analysis & Stats
         update_status(job_id, 6, total_steps, "Computing Graph Statistics...")
@@ -251,16 +267,55 @@ def run_pipeline(job_id: str, zip_path: str):
         num_nodes = len(nodes)
         num_edges = len(all_edges)
         
-        # Calculate dynamic confidence from LLM analysis
-        confidence_scores = [
-            n.get('confidence_score', 0.0) for n in nodes
-            if isinstance(n.get('confidence_score'), (int, float)) and n.get('confidence_score') > 0
-        ]
-        avg_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.85
+        # Calculate confidence using tier-weighted average.
+        # Higher-risk tiers received more analysis so their scores carry more weight.
+        # All scored nodes are included (threshold >= 0, not > 0) so Tier 1 nodes
+        # with confidence_score=0.75 and Sentinel fallbacks at 0.4 are not dropped.
+        _tier_weights = {'none': 0.5, 'low': 0.75, 'moderate': 1.0,
+                         'medium': 1.0, 'high': 1.2, 'critical': 1.5, 'unknown': 0.6}
+        weighted_sum, weight_total = 0.0, 0.0
+        for n in nodes:
+            score = n.get('confidence_score', 0.0)
+            if isinstance(score, (int, float)) and score >= 0:
+                w = _tier_weights.get(n.get('risk_level', 'none'), 1.0)
+                weighted_sum += score * w
+                weight_total += w
+        avg_confidence = (weighted_sum / weight_total) if weight_total > 0 else 0.85
         confidence_pct = f"{int(avg_confidence * 100)}%"
         
+        # Cluster nodes into microservice boundaries using GNN embeddings
+        clusters = []
+        num_services = "N/A"
+        try:
+            embeddable = [n for n in nodes if isinstance(n.get('embedding'), list) and len(n['embedding']) > 0]
+            if embeddable:
+                clusters = cluster_nodes(embeddable)
+                num_services = len(clusters)
+                print(f"[Clustering] Identified {num_services} microservice boundary candidates")
+
+                # LLM cluster labelling — runs after clustering, uses Mapper model
+                try:
+                    from clustering import label_clusters_with_llm
+                    from orchestrator import _get_bedrock_client, MODEL_ROLES
+                    bedrock_client = _get_bedrock_client()
+                    mapper_model_id = MODEL_ROLES["mapper"]["model_id"]
+                    clusters = label_clusters_with_llm(clusters, bedrock_client, mapper_model_id)
+                    print(f"[Clustering] LLM labelling complete")
+                except Exception as llm_err:
+                    print(f"[Clustering] LLM labelling skipped: {llm_err}")
+
+                # Attach cluster ID and LLM-assigned name back to each node
+                for cluster in clusters:
+                    for nid in cluster.get('node_ids', []):
+                        for node in nodes:
+                            if node['id'] == nid:
+                                node['cluster_id'] = cluster['id']
+                                node['cluster_name'] = cluster['name']
+        except Exception as e:
+            print(f"Warning: Clustering failed: {e}")
+
         stats = {
-            "services": "N/A", 
+            "services": num_services,
             "loc": f"{total_loc // 1000}k" if total_loc >= 1000 else str(total_loc),
             "nodes": num_nodes,
             "edges": num_edges,
@@ -294,7 +349,8 @@ def run_pipeline(job_id: str, zip_path: str):
             "edges": all_edges,
             "report": report,
             "stats": stats,
-            "tree_data": tree_data
+            "tree_data": tree_data,
+            "clusters": clusters
         }
         JOB_STATUS[job_id] = "Done"
 

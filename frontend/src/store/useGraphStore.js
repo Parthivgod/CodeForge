@@ -29,10 +29,21 @@ const useGraphStore = create((set, get) => ({
     // --- Layout ---
     layoutRunning: false,
 
+    // --- GNN / Cluster state ---
+    clusters: [],
+    colorMode: 'risk',           // 'risk' | 'cluster'
+    highlightedClusterId: null,
+
     // --- Drill-down (hierarchical view) ---
     expandedFiles: new Set(),   // Set of file paths currently expanded
 
     // ========== ACTIONS ==========
+
+    setClusters: (clusters) => set({ clusters }),
+
+    setColorMode: (mode) => set({ colorMode: mode }),
+
+    setHighlightedCluster: (id) => set({ highlightedClusterId: id }),
 
     setGraphData: (nodes, edges) =>
         set({

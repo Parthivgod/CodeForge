@@ -18,3 +18,7 @@ scikit-learn
 langsmith
 # GNN dependencies (CPU-only PyTorch — no GPU required)
 torch --index-url https://download.pytorch.org/whl/cpu
+numpy
+sqlalchemy
+pgvector
+azure-storage-blob>=12.19.0
